@@ -1,4 +1,5 @@
 from django.db import models
+from tenants.models import Lodge
 
 
 class Room(models.Model):
@@ -9,6 +10,13 @@ class Room(models.Model):
         ("Cleaning", "Cleaning"),
         ("Maintenance", "Maintenance"),
     ]
+    
+    lodge = models.ForeignKey(
+    Lodge,
+    on_delete=models.CASCADE,
+    related_name="rooms"
+    
+)
 
     room_name = models.CharField(max_length=100)
     room_type = models.CharField(max_length=100)

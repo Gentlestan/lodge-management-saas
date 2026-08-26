@@ -2,6 +2,7 @@ from django.db import models
 
 from guests.models import Guest
 from rooms.models import Room
+from tenants.models import Lodge
 
 
 class Reservation(models.Model):
@@ -12,6 +13,13 @@ class Reservation(models.Model):
         ("Checked Out", "Checked Out"),
         ("Cancelled", "Cancelled"),
     ]
+    
+    lodge = models.ForeignKey(
+    Lodge,
+    on_delete=models.CASCADE,
+    related_name="reservations"
+    
+)
 
     guest = models.ForeignKey(
         Guest,
