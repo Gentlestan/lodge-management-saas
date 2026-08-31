@@ -66,7 +66,7 @@ class RoomViewSet(viewsets.ModelViewSet):
             return Response(
                 {
                     "detail": (
-                        f"Room {room.room_name} cannot be deactivated "
+                        f"{room.room_name} cannot be deactivated "
                         f"while its status is {room.status}."
                     )
                 },
