@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/auth";
+import AppLayout from "@/components/layout/AppLayout";
+
 
 type DashboardReservation = {
   id: number;
@@ -37,9 +40,7 @@ export default function Dashboard() {
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        const response = await fetch(
-          "http://127.0.0.1:8000/api/dashboard/"
-        );
+        const response = await apiFetch("/api/dashboard/");
 
         if (!response.ok) {
           throw new Error("Failed to load dashboard");
@@ -92,6 +93,7 @@ export default function Dashboard() {
   const alerts = dashboard.alerts;
 
   return (
+  
     <main className="min-h-screen bg-gray-100 p-6">
       <div className="mx-auto max-w-7xl">
 
@@ -452,5 +454,6 @@ export default function Dashboard() {
 
       </div>
     </main>
+    
   );
 }

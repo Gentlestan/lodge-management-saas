@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { apiFetch } from "@/lib/auth";
 
 export default function NewRoom() {
   const [roomName, setRoomName] = useState("");
@@ -24,25 +25,17 @@ export default function NewRoom() {
       description,
       amenities,
       bed_type: bedType,
-      maximum_occupancy: maximumOccupancy
-        ? Number(maximumOccupancy)
-        : null,
+      maximum_occupancy: Number(maximumOccupancy),
       floor_location: floorLocation,
       internal_notes: internalNotes,
       active: true,
     };
 
     try {
-      const response = await fetch(
-        "http://127.0.0.1:8000/api/rooms/",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(room),
-        }
-      );
+      const response = await apiFetch("/api/rooms/", {
+        method: "POST",
+        body: JSON.stringify(room),
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -66,105 +59,261 @@ export default function NewRoom() {
     }
   }
 
-  return (
-    <main>
-      <h1>Add New Room</h1>
+  
+return (
+  <main className="min-h-screen bg-gray-100 p-6">
+    <div className="mx-auto max-w-4xl">
 
-      <form onSubmit={handleSubmit}>
+
+      {/* HEADER */}
+
+      <div className="mb-6"> 
+      <button type="button" 
+      onClick={() => window.history.back()} 
+      className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50" >
+         ← Back to Rooms 
+      </button>
+       </div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">
+          Add New Room
+        </h1>
+
+        <p className="mt-2 text-gray-500">
+          Add a new room to your lodge and provide its details.
+        </p>
+      </div>
+
+      {/* FORM */}
+      <form
+        onSubmit={handleSubmit}
+        className="rounded-xl bg-white p-6 shadow-sm sm:p-8"
+      >
+
+        {/* BASIC INFORMATION */}
         <div>
-          <label htmlFor="roomName">
-            Room Number/Name
-          </label>
+          <h2 className="text-lg font-semibold text-gray-900">
+            Basic Information
+          </h2>
 
-          <input
-            id="roomName"
-            type="text"
-            value={roomName}
-            onChange={(e) => setRoomName(e.target.value)}
-            placeholder="e.g. Room 101"
-            required
-          />
+          <p className="mt-1 text-sm text-gray-500">
+            Enter the main information about the room.
+          </p>
         </div>
 
-        <div>
-          <label htmlFor="roomType">
-            Room Type
-          </label>
+        <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
 
-          <input
-            id="roomType"
-            type="text"
-            value={roomType}
-            onChange={(e) => setRoomType(e.target.value)}
-            placeholder="e.g. Standard"
-            required
-          />
+          {/* ROOM NAME */}
+          <div>
+            <label
+              htmlFor="roomName"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Room Number/Name
+            </label>
+
+            <input
+              id="roomName"
+              type="text"
+              value={roomName}
+              onChange={(e) => setRoomName(e.target.value)}
+              placeholder="e.g. Room 101"
+              required
+              className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+
+          {/* ROOM TYPE */}
+          <div>
+            <label
+              htmlFor="roomType"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Room Type
+            </label>
+
+            <input
+              id="roomType"
+              type="text"
+              value={roomType}
+              onChange={(e) => setRoomType(e.target.value)}
+              placeholder="e.g. Standard"
+              required
+              className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+
+          {/* PRICE */}
+          <div>
+            <label
+              htmlFor="price"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Price per night
+            </label>
+
+            <input
+              id="price"
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="e.g. 25000"
+              required
+              className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+
+          {/* STATUS */}
+          <div>
+            <label
+              htmlFor="status"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Status
+            </label>
+
+            <select
+              id="status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            >
+              <option value="Available">Available</option>
+              <option value="Reserved">Reserved</option>
+              <option value="Occupied">Occupied</option>
+              <option value="Cleaning">Cleaning</option>
+              <option value="Maintenance">
+                Maintenance
+              </option>
+            </select>
+          </div>
         </div>
 
-        <div>
-          <label htmlFor="price">
-            Price per night
-          </label>
+        {/* ROOM DETAILS */}
+        <div className="mt-8 border-t pt-8">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Room Details
+          </h2>
 
-          <input
-            id="price"
-            type="number"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            placeholder="e.g. 25000"
-            required
-          />
+          <p className="mt-1 text-sm text-gray-500">
+            Add additional information guests and staff may need.
+          </p>
         </div>
 
-        <div>
-          <label htmlFor="status">
-            Status
-          </label>
+        <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
 
-          <select
-            id="status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
+          {/* BED TYPE */}
+          <div>
+            <label
+              htmlFor="bedType"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Bed Type
+            </label>
+
+            <input
+              id="bedType"
+              type="text"
+              value={bedType}
+              onChange={(e) => setBedType(e.target.value)}
+              placeholder="e.g. King Bed"
+              className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+
+          {/* MAXIMUM OCCUPANCY */}
+          <div>
+            <label
+              htmlFor="maximumOccupancy"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Maximum Occupancy
+            </label>
+
+            <input
+              id="maximumOccupancy"
+              type="number"
+              min="1"
+              value={maximumOccupancy}
+              onChange={(e) =>
+                setMaximumOccupancy(e.target.value)
+              }
+              placeholder="e.g. 2"
+              required
+              className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+
+          {/* FLOOR */}
+          <div>
+            <label
+              htmlFor="floorLocation"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Floor/Location
+            </label>
+
+            <input
+              id="floorLocation"
+              type="text"
+              value={floorLocation}
+              onChange={(e) =>
+                setFloorLocation(e.target.value)
+              }
+              placeholder="e.g. Ground Floor"
+              className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+
+          {/* AMENITIES */}
+          <div>
+            <label
+              htmlFor="amenities"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Amenities
+            </label>
+
+            <input
+              id="amenities"
+              type="text"
+              value={amenities}
+              onChange={(e) =>
+                setAmenities(e.target.value)
+              }
+              placeholder="e.g. AC, TV, Wi-Fi, Water Heater"
+              className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+        </div>
+
+        {/* DESCRIPTION */}
+        <div className="mt-6">
+          <label
+            htmlFor="description"
+            className="block text-sm font-medium text-gray-700"
           >
-            <option value="Available">Available</option>
-            <option value="Reserved">Reserved</option>
-            <option value="Occupied">Occupied</option>
-            <option value="Cleaning">Cleaning</option>
-            <option value="Maintenance">
-              Maintenance
-            </option>
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="description">
             Description
           </label>
 
           <textarea
             id="description"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e) =>
+              setDescription(e.target.value)
+            }
             placeholder="Describe the room"
+            rows={4}
+            className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
           />
         </div>
 
-        <div>
-          <label htmlFor="amenities">
-            Amenities
-          </label>
-
-          <input
-            id="amenities"
-            type="text"
-            value={amenities}
-            onChange={(e) => setAmenities(e.target.value)}
-            placeholder="e.g. AC, TV, Wi-Fi, Water Heater"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="images">
+        {/* IMAGES */}
+        <div className="mt-6">
+          <label
+            htmlFor="images"
+            className="block text-sm font-medium text-gray-700"
+          >
             Images
           </label>
 
@@ -174,58 +323,20 @@ export default function NewRoom() {
             accept="image/*"
             multiple
             onChange={(e) => setImages(e.target.files)}
+            className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-200"
           />
+
+          <p className="mt-1 text-xs text-gray-500">
+            You can select multiple room images.
+          </p>
         </div>
 
-        <div>
-          <label htmlFor="bedType">
-            Bed Type
-          </label>
-
-          <input
-            id="bedType"
-            type="text"
-            value={bedType}
-            onChange={(e) => setBedType(e.target.value)}
-            placeholder="e.g. King Bed"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="maximumOccupancy">
-            Maximum Occupancy
-          </label>
-
-          <input
-            id="maximumOccupancy"
-            type="number"
-            min="1"
-            value={maximumOccupancy}
-            onChange={(e) =>
-              setMaximumOccupancy(e.target.value)
-            }
-            placeholder="e.g. 2"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="floorLocation">
-            Floor/Location
-          </label>
-
-          <input
-            id="floorLocation"
-            type="text"
-            value={floorLocation}
-            onChange={(e) =>
-              setFloorLocation(e.target.value)
-            }
-            placeholder="e.g. Ground Floor"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="internalNotes">
+        {/* INTERNAL NOTES */}
+        <div className="mt-6">
+          <label
+            htmlFor="internalNotes"
+            className="block text-sm font-medium text-gray-700"
+          >
             Internal Notes
           </label>
 
@@ -236,13 +347,24 @@ export default function NewRoom() {
               setInternalNotes(e.target.value)
             }
             placeholder="Private notes for staff"
+            rows={4}
+            className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
           />
         </div>
 
-        <button type="submit">
-          Add Room
-        </button>
+        {/* ACTION */}
+        <div className="mt-8 flex justify-end border-t pt-6">
+          <button
+            type="submit"
+            className="rounded-lg bg-blue-600 px-6 py-2.5 font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+          >
+            Add Room
+          </button>
+        </div>
+
       </form>
-    </main>
-  );
+    </div>
+  </main>
+);
+
 }

@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { apiFetch } from "../../lib/auth";
 
 type ServiceItem = {
   id: number;
@@ -67,8 +68,8 @@ export default function AddChargeForm({
     setAddingCharge(true);
 
     try {
-      const response = await fetch(
-        "http://127.0.0.1:8000/api/billing/charges/",
+      const response = await apiFetch(
+      "/api/billing/charges/",
         {
           method: "POST",
           headers: {
@@ -98,9 +99,9 @@ export default function AddChargeForm({
 
       onChargeAdded(newCharge);
 
-      const summaryResponse = await fetch(
-        `http://127.0.0.1:8000/api/billing/reservations/${reservationId}/summary/`
-      );
+      const summaryResponse = await apiFetch(
+      `/api/billing/reservations/${reservationId}/summary/`
+    );
 
       if (summaryResponse.ok) {
         const updatedSummary =

@@ -5,15 +5,31 @@ from django.utils import timezone
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from tenants.permissions import IsLodgeMember
+from tenants.utils import get_current_lodge
 
 from billing.models import Charge
+from tenants.models import Membership
 from .models import Reservation
 from .serializers import ReservationSerializer
 
 
 class ReservationViewSet(viewsets.ModelViewSet):
-    queryset = Reservation.objects.all().order_by("-created_at")
+    permission_classes = [IsAuthenticated, IsLodgeMember]
+    
     serializer_class = ReservationSerializer
+        
+    def get_queryset(self):
+        if self.request.user.is_superuser:
+            return Reservation.objects.all().order_by("-created_at")
+
+        lodge = get_current_lodge(self.request.user)
+
+        return Reservation.objects.filter(
+            lodge=lodge
+        ).order_by("-created_at")
+    
 
     def create(self, request, *args, **kwargs):
         """
@@ -27,10 +43,35 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 {"detail": "Guest and room are required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
+        membership = (
+            Membership.objects
+            .filter(
+                user=request.user,
+                active=True,
+            )
+            .select_related("lodge")
+            .first()
+        )
+
+        if not membership:
+            return Response(
+                {
+                    "detail": (
+                        "You do not have an active lodge membership."
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        lodge = membership.lodge    
 
         try:
             with transaction.atomic():
                 reservation_data = request.data.copy()
+
+                # Assign the authenticated user's lodge before validation.
+                reservation_data["lodge"] = lodge.id
 
                 serializer = self.get_serializer(data=reservation_data)
                 serializer.is_valid(raise_exception=True)
@@ -101,7 +142,8 @@ class ReservationViewSet(viewsets.ModelViewSet):
                     )
 
                 reservation = serializer.save(
-                    room_rate=room.price_per_night
+                    lodge=lodge,
+                    room_rate=room.price_per_night,
                 )
 
                 # New reservation occupies the room for future booking.

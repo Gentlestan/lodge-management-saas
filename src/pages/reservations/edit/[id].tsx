@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import { apiFetch } from "../../../lib/auth";
 
 type Guest = {
   id: number;
@@ -57,9 +58,9 @@ export default function EditReservation() {
           guestsResponse,
           roomsResponse,
         ] = await Promise.all([
-          fetch(`http://127.0.0.1:8000/api/reservations/${id}/`),
-          fetch("http://127.0.0.1:8000/api/guests/"),
-          fetch("http://127.0.0.1:8000/api/rooms/"),
+          apiFetch(`/api/reservations/${id}/`),
+          apiFetch("/api/guests/"),
+          apiFetch("/api/rooms/"),
         ]);
 
         if (
@@ -105,24 +106,24 @@ export default function EditReservation() {
     setError("");
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/reservations/${id}/`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            guest: Number(guest),
-            room: Number(room),
-            check_in_date: checkInDate,
-            check_out_date: checkOutDate,
-            number_of_guests: Number(numberOfGuests),
-            special_requests: specialRequests,
-            notes,
-          }),
-        }
-      );
+      const response = await apiFetch(
+      `/api/reservations/${id}/`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          guest: Number(guest),
+          room: Number(room),
+          check_in_date: checkInDate,
+          check_out_date: checkOutDate,
+          number_of_guests: Number(numberOfGuests),
+          special_requests: specialRequests,
+          notes,
+        }),
+      }
+    );
 
       const data = await response.json();
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { apiFetch } from "../../lib/auth";
 
 type AddPaymentProps = {
   reservationId: number;
@@ -43,8 +44,8 @@ export default function AddPayment({
     setAddingPayment(true);
 
     try {
-      const response = await fetch(
-        "http://127.0.0.1:8000/api/billing/payments/",
+          const response = await apiFetch(
+          "/api/billing/payments/",
         {
           method: "POST",
           headers: {
@@ -71,9 +72,9 @@ export default function AddPayment({
 
       onPaymentAdded(newPayment);
 
-      const summaryResponse = await fetch(
-        `http://127.0.0.1:8000/api/billing/reservations/${reservationId}/summary/`
-      );
+      const summaryResponse = await apiFetch(
+      `/api/billing/reservations/${reservationId}/summary/`
+    );
 
       if (summaryResponse.ok) {
         const updatedSummary = await summaryResponse.json();

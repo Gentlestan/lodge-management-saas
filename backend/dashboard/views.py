@@ -1,19 +1,29 @@
 from django.utils import timezone
 from django.db.models import Sum
 
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from rooms.models import Room
 from reservations.models import Reservation
 
+from tenants.permissions import IsLodgeMember
+from tenants.utils import get_current_lodge
+
 
 class DashboardView(APIView):
+    permission_classes = [IsAuthenticated, IsLodgeMember]
 
     def get(self, request):
         today = timezone.localdate()
 
-        active_rooms = Room.objects.filter(active=True)
+        lodge = get_current_lodge(request.user)
+
+        active_rooms = Room.objects.filter(
+            lodge=lodge,
+            active=True,
+        )
 
         total_rooms = active_rooms.count()
 
@@ -37,21 +47,25 @@ class DashboardView(APIView):
             status="Maintenance"
         ).count()
 
-        check_ins_today = Reservation.objects.filter(
+        lodge_reservations = Reservation.objects.filter(
+            room__lodge=lodge
+        )
+
+        check_ins_today = lodge_reservations.filter(
             checked_in_at__date=today,
         ).count()
 
-        check_outs_today = Reservation.objects.filter(
+        check_outs_today = lodge_reservations.filter(
             checked_out_at__date=today,
         ).count()
-        
-        current_guests = Reservation.objects.filter(
+
+        current_guests = lodge_reservations.filter(
             status="Checked In",
         ).aggregate(
             total=Sum("number_of_guests")
         )["total"] or 0
 
-        upcoming_reservations = Reservation.objects.filter(
+        upcoming_reservations = lodge_reservations.filter(
             check_in_date__gt=today,
             status="Reserved",
         ).order_by("check_in_date")[:5]
@@ -68,7 +82,7 @@ class DashboardView(APIView):
             for reservation in upcoming_reservations
         ]
 
-        overdue_checkouts = Reservation.objects.filter(
+        overdue_checkouts = lodge_reservations.filter(
             check_out_date__lt=today,
             status="Checked In",
         ).count()

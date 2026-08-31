@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/auth";
 
 type Guest = {
   id: number;
@@ -28,9 +29,7 @@ export default function Guests() {
         setLoading(true);
         setError("");
 
-        const response = await fetch(
-          "http://127.0.0.1:8000/api/guests/"
-        );
+        const response = await apiFetch("/api/guests/");
 
         if (!response.ok) {
           throw new Error("Failed to fetch guests");
@@ -70,18 +69,15 @@ export default function Guests() {
     if (!confirmed) return;
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/guests/${guest.id}/`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            active: false,
-          }),
-        }
-      );
+      const response = await apiFetch(
+      `/api/guests/${guest.id}/`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          active: false,
+        }),
+      }
+    );
 
       if (!response.ok) {
         throw new Error("Failed to deactivate guest");
@@ -108,19 +104,15 @@ export default function Guests() {
     if (!confirmed) return;
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/guests/${guest.id}/`,
+      const response = await apiFetch(
+        `/api/guests/${guest.id}/`,
         {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
           body: JSON.stringify({
             active: true,
           }),
         }
       );
-
       if (!response.ok) {
         throw new Error("Failed to reactivate guest");
       }

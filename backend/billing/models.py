@@ -1,9 +1,16 @@
 from django.db import models
 
 from reservations.models import Reservation
+from tenants.models import Lodge
 
 
 class ServiceItem(models.Model):
+    
+    lodge = models.ForeignKey(
+        Lodge,
+        on_delete=models.CASCADE,
+        related_name="service_items",
+    )
     CATEGORY_CHOICES = [
         ("Food", "Food"),
         ("Drinks", "Drinks"),
@@ -138,7 +145,13 @@ class Payment(models.Model):
     
     
 class ExpenseCategory(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+    lodge = models.ForeignKey(
+        Lodge,
+        on_delete=models.CASCADE,
+        related_name="expense_categories",
+    )
+
+    name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     active = models.BooleanField(default=True)
 
@@ -153,6 +166,12 @@ class ExpenseCategory(models.Model):
 
 
 class Expense(models.Model):
+    lodge = models.ForeignKey(
+        Lodge,
+        on_delete=models.CASCADE,
+        related_name="expenses",
+    )
+
     category = models.ForeignKey(
         ExpenseCategory,
         on_delete=models.PROTECT,
@@ -176,19 +195,44 @@ class Expense(models.Model):
 
 
 class Staff(models.Model):
+    lodge = models.ForeignKey(
+        Lodge,
+        on_delete=models.CASCADE,
+        related_name="staff"
+    )
+
     name = models.CharField(max_length=100)
+
     role = models.CharField(max_length=100)
+
+    phone = models.CharField(
+        max_length=30,
+        blank=True,
+    )
+
+    email = models.EmailField(
+        blank=True,
+    )
+    
+    employment_date = models.DateField()
+    employment_end_date = models.DateField(null=True, blank=True)
+
     salary = models.DecimalField(
         max_digits=12,
         decimal_places=2,
     )
+
     active = models.BooleanField(default=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
+
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
-    
+
+
+
 class SalaryPayment(models.Model):
     staff = models.ForeignKey(
         Staff,
@@ -202,8 +246,16 @@ class SalaryPayment(models.Model):
     payment_date = models.DateField()
     salary_month = models.DateField()
     notes = models.TextField(blank=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["staff", "salary_month"],
+                name="unique_staff_salary_month",
+            )
+        ]
 
     def __str__(self):
         return f"{self.staff.name} - {self.amount}"
+

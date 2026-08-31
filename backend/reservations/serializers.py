@@ -2,6 +2,8 @@ from django.utils import timezone
 
 from rest_framework import serializers
 
+from tenants.utils import get_current_lodge
+
 from .models import Reservation
 
 
@@ -34,7 +36,6 @@ class ReservationSerializer(serializers.ModelSerializer):
         # Get the existing reservation values when this is an edit.
         # This is important because PATCH may only send changed fields.
         # ---------------------------------------------------------
-
         instance = self.instance
 
         check_in = data.get(
@@ -63,9 +64,33 @@ class ReservationSerializer(serializers.ModelSerializer):
         )
 
         # ---------------------------------------------------------
+        # Lodge isolation
+        # ---------------------------------------------------------
+        request = self.context.get("request")
+        lodge = None
+
+        if request and request.user.is_authenticated:
+            lodge = get_current_lodge(request.user)
+
+        if lodge:
+            if guest and guest.lodge_id != lodge.id:
+                raise serializers.ValidationError(
+                    {
+                        "guest": "This guest does not belong to your lodge."
+                    }
+                )
+
+            if room and room.lodge_id != lodge.id:
+                raise serializers.ValidationError(
+                    {
+                        "room": "This room does not belong to your lodge."
+                    }
+                )
+
+        
+        # ---------------------------------------------------------
         # Reservation status rules
         # ---------------------------------------------------------
-
         if instance:
             # Checked-out reservations should not be edited.
             if instance.status == "Checked Out":
@@ -135,7 +160,6 @@ class ReservationSerializer(serializers.ModelSerializer):
         # ---------------------------------------------------------
         # Check-in date validation
         # ---------------------------------------------------------
-
         # New reservations cannot have a check-in date in the past.
         if (
             check_in
@@ -159,7 +183,6 @@ class ReservationSerializer(serializers.ModelSerializer):
         # ---------------------------------------------------------
         # Guest validation
         # ---------------------------------------------------------
-
         if guest and not guest.active:
             raise serializers.ValidationError(
                 {
@@ -173,7 +196,6 @@ class ReservationSerializer(serializers.ModelSerializer):
         # ---------------------------------------------------------
         # Room validation
         # ---------------------------------------------------------
-
         if room and not room.active:
             raise serializers.ValidationError(
                 {
@@ -199,7 +221,6 @@ class ReservationSerializer(serializers.ModelSerializer):
         # ---------------------------------------------------------
         # Number of guests / room capacity
         # ---------------------------------------------------------
-
         if room and number_of_guests:
             if number_of_guests > room.maximum_occupancy:
                 raise serializers.ValidationError(
@@ -214,7 +235,6 @@ class ReservationSerializer(serializers.ModelSerializer):
         # ---------------------------------------------------------
         # Date validation
         # ---------------------------------------------------------
-
         if check_in and check_out:
             if check_out <= check_in:
                 raise serializers.ValidationError(
@@ -229,7 +249,6 @@ class ReservationSerializer(serializers.ModelSerializer):
         # ---------------------------------------------------------
         # Prevent overlapping reservations
         # ---------------------------------------------------------
-
         if room and check_in and check_out:
             overlapping_reservations = Reservation.objects.filter(
                 room=room,

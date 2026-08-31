@@ -1,19 +1,36 @@
-# rooms/views.py
-
 from rest_framework import status, viewsets
-
 from rest_framework.decorators import action
-
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from tenants.permissions import (
+    IsLodgeMember,
+    IsRoomManagerOrOwner,
+)
+from tenants.utils import get_current_lodge
 
 from .models import Room
-
 from .serializers import RoomSerializer
 
 
 class RoomViewSet(viewsets.ModelViewSet):
-    queryset = Room.objects.all()
     serializer_class = RoomSerializer
+    permission_classes = [
+    IsAuthenticated,
+    IsLodgeMember,
+    IsRoomManagerOrOwner,
+]
+
+    def get_queryset(self):
+        # Platform admin can see everything
+        if self.request.user.is_superuser:
+            return Room.objects.all()
+
+        lodge = get_current_lodge(self.request.user)
+        return Room.objects.filter(lodge=lodge)
+
+    def perform_create(self, serializer):
+        lodge = get_current_lodge(self.request.user)
+        serializer.save(lodge=lodge)
 
     @action(detail=True, methods=["patch"])
     def mark_available(self, request, pk=None):
@@ -22,9 +39,7 @@ class RoomViewSet(viewsets.ModelViewSet):
         if not room.active:
             return Response(
                 {
-                    "detail": (
-                        "An inactive room cannot be marked as available."
-                    )
+                    "detail": "An inactive room cannot be marked as available."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -44,5 +59,4 @@ class RoomViewSet(viewsets.ModelViewSet):
         room.save()
 
         serializer = self.get_serializer(room)
-
         return Response(serializer.data)

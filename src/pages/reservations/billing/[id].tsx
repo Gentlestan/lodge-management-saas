@@ -1,6 +1,8 @@
+import { apiFetch } from "../../../lib/auth";
 import { useRouter } from "next/router";
 
 import { useEffect, useState } from "react";
+
 
 import BillingSummary from "@/components/billing/BillingSummary";
 
@@ -82,40 +84,48 @@ export default function BillingPage() {
     const loadBilling = async () => {
       try {
         const [
-          reservationResponse,
-          summaryResponse,
-          chargesResponse,
-          paymentsResponse,
-          serviceItemsResponse,
-        ] = await Promise.all([
-          fetch(
-            `http://127.0.0.1:8000/api/reservations/${id}/`
-          ),
-          fetch(
-            `http://127.0.0.1:8000/api/billing/reservations/${id}/summary/`
-          ),
-          fetch(
-            `http://127.0.0.1:8000/api/billing/charges/?reservation=${id}`
-          ),
-          fetch(
-            `http://127.0.0.1:8000/api/billing/payments/?reservation=${id}`
-          ),
-          fetch(
-            `http://127.0.0.1:8000/api/billing/service-items/`
-          ),
-        ]);
+                reservationResponse,
+                summaryResponse,
+                chargesResponse,
+                paymentsResponse,
+                serviceItemsResponse,
+              ] = await Promise.all([
+                apiFetch(`/api/reservations/${id}/`),
+                apiFetch(`/api/billing/reservations/${id}/summary/`),
+                apiFetch(`/api/billing/charges/?reservation=${id}`),
+                apiFetch(`/api/billing/payments/?reservation=${id}`),
+                apiFetch("/api/billing/service-items/"),
+              ]);
 
-        if (
-          !reservationResponse.ok ||
-          !summaryResponse.ok ||
-          !chargesResponse.ok ||
-          !paymentsResponse.ok ||
-          !serviceItemsResponse.ok
-        ) {
-          throw new Error(
-            "Failed to load billing information"
-          );
-        }
+        if (!reservationResponse.ok) {
+  throw new Error(
+    `Reservation request failed: ${reservationResponse.status}`
+  );
+}
+
+if (!summaryResponse.ok) {
+  throw new Error(
+    `Summary request failed: ${summaryResponse.status}`
+  );
+}
+
+if (!chargesResponse.ok) {
+  throw new Error(
+    `Charges request failed: ${chargesResponse.status}`
+  );
+}
+
+if (!paymentsResponse.ok) {
+  throw new Error(
+    `Payments request failed: ${paymentsResponse.status}`
+  );
+}
+
+if (!serviceItemsResponse.ok) {
+  throw new Error(
+    `Service items request failed: ${serviceItemsResponse.status}`
+  );
+}
 
         const summaryData =
           await summaryResponse.json();

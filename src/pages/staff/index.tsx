@@ -1,73 +1,107 @@
-
 import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+
+import { apiFetch, getAuth } from "@/lib/auth";
+
+import StaffDirectory from "@/components/staff/StaffDirectory";
+import StaffForm from "@/components/staff/StaffForm";
+import StaffEditForm from "@/components/staff/StaffEditForm";
 
 type Staff = {
   id: number;
   name: string;
   role: string;
+  phone: string;
+  email: string;
   salary: number;
+  employment_date: string;
+  employment_end_date: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;
 };
 
+type Role = "Owner" | "Manager" | "Receptionist";
+
 export default function StaffPage() {
+  const router = useRouter();
+
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
+
+  const [role, setRole] = useState<Role | null>(null);
 
   const [showForm, setShowForm] = useState(false);
+  const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
 
   const [name, setName] = useState("");
-  const [role, setRole] = useState("");
+  const [staffRole, setStaffRole] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [salary, setSalary] = useState("");
+  const [employmentDate, setEmploymentDate] = useState("");
+  const [employmentEndDate, setEmploymentEndDate] = useState("");
   const [active, setActive] = useState(true);
 
-  const [saving, setSaving] = useState(false);
-  
-    const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editRole, setEditRole] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editSalary, setEditSalary] = useState("");
+  const [editEmploymentDate, setEditEmploymentDate] = useState("");
+  const [editEmploymentEndDate, setEditEmploymentEndDate] = useState("");
+  const [editActive, setEditActive] = useState(true);
 
-    const [editName, setEditName] = useState("");
-    const [editRole, setEditRole] = useState("");
-    const [editSalary, setEditSalary] = useState("");
-    const [editActive, setEditActive] = useState(true);
-
-
-    const [statusFilter, setStatusFilter] = useState<
+  const [statusFilter, setStatusFilter] = useState<
     "active" | "inactive" | "all"
-    >("active");
+  >("active");
 
+  const [saving, setSaving] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
-    const [updating, setUpdating] = useState(false);
+  const canManage = role === "Owner" || role === "Manager";
 
+  useEffect(() => {
+    const auth = getAuth();
 
+    if (!auth) {
+      router.replace("/login");
+      return;
+    }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+    if (
+      auth.role !== "Owner" &&
+      auth.role !== "Manager" &&
+      auth.role !== "Receptionist"
+    ) {
+      router.replace("/dashboard");
+      return;
+    }
+
+    setRole(auth.role as Role);
+    setAuthorized(true);
+  }, [router]);
 
   const fetchStaff = async () => {
     try {
-      
-        let url = "http://127.0.0.1:8000/api/billing/staff/";
+      let endpoint = "/api/billing/staff/";
 
-        if (statusFilter === "active") {
-        url += "?active=true";
-        }
+      if (statusFilter === "active") {
+        endpoint += "?active=true";
+      }
 
-        if (statusFilter === "inactive") {
-        url += "?active=false";
-        }
+      if (statusFilter === "inactive") {
+        endpoint += "?active=false";
+      }
 
-        const response = await fetch(url);
+      const response = await apiFetch(endpoint);
 
-
+      if (!response.ok) {
+        throw new Error("Failed to fetch staff");
+      }
 
       const data = await response.json();
-
       setStaff(data);
     } catch (error) {
       console.error(error);
@@ -77,8 +111,23 @@ export default function StaffPage() {
   };
 
   useEffect(() => {
+    if (!authorized) {
+      return;
+    }
+
     fetchStaff();
-  }, [statusFilter]);
+  }, [authorized, statusFilter]);
+
+  const resetForm = () => {
+    setName("");
+    setStaffRole("");
+    setPhone("");
+    setEmail("");
+    setSalary("");
+    setEmploymentDate("");
+    setEmploymentEndDate("");
+    setActive(true);
+  };
 
   const handleAddStaff = async (
     event: React.FormEvent<HTMLFormElement>
@@ -88,17 +137,18 @@ export default function StaffPage() {
     setSaving(true);
 
     try {
-      const response = await fetch(
-        "http://127.0.0.1:8000/api/billing/staff/",
+      const response = await apiFetch(
+        "/api/billing/staff/",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
           body: JSON.stringify({
             name,
-            role,
+            role: staffRole,
+            phone,
+            email,
             salary,
+            employment_date: employmentDate,
+            employment_end_date: employmentEndDate || null,
             active,
           }),
         }
@@ -108,11 +158,7 @@ export default function StaffPage() {
         throw new Error("Failed to add staff");
       }
 
-      setName("");
-      setRole("");
-      setSalary("");
-      setActive(true);
-
+      resetForm();
       setShowForm(false);
 
       await fetchStaff();
@@ -123,369 +169,212 @@ export default function StaffPage() {
     }
   };
 
-
-    const handleEditClick = (person: Staff) => {
+  const handleEditClick = (person: Staff) => {
     setEditingStaff(person);
 
     setEditName(person.name);
     setEditRole(person.role);
+    setEditPhone(person.phone);
+    setEditEmail(person.email);
     setEditSalary(String(person.salary));
+    setEditEmploymentDate(person.employment_date);
+    setEditEmploymentEndDate(person.employment_end_date || "");
     setEditActive(person.active);
 
     setShowForm(false);
-    };
+  };
 
-    const handleUpdateStaff = async (
+  const handleUpdateStaff = async (
     event: React.FormEvent<HTMLFormElement>
-    ) => {
+  ) => {
     event.preventDefault();
 
     if (!editingStaff) {
-        return;
+      return;
     }
 
     setUpdating(true);
 
     try {
-        const response = await fetch(
-        `http://127.0.0.1:8000/api/billing/staff/${editingStaff.id}/`,
+      const response = await apiFetch(
+        `/api/billing/staff/${editingStaff.id}/`,
         {
-            method: "PUT",
-            headers: {
-            "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
+          method: "PUT",
+          body: JSON.stringify({
             name: editName,
             role: editRole,
+            phone: editPhone,
+            email: editEmail,
             salary: editSalary,
+             employment_date: editEmploymentDate,
+             employment_end_date: editEmploymentEndDate || null,
             active: editActive,
-            }),
+          }),
         }
-        );
+      );
 
-        if (!response.ok) {
+      if (!response.ok) {
         throw new Error("Failed to update staff");
-        }
+      }
 
-        setEditingStaff(null);
+      setEditingStaff(null);
 
-        setEditName("");
-        setEditRole("");
-        setEditSalary("");
-        setEditActive(true);
+      setEditName("");
+      setEditRole("");
+      setEditPhone("");
+      setEditEmail("");
+      setEditSalary("");
+      setEditEmploymentDate("");
+      setEditEmploymentEndDate("");
+      setEditActive(true);
 
-        await fetchStaff();
+      await fetchStaff();
     } catch (error) {
-        console.error(error);
+      console.error(error);
     } finally {
-        setUpdating(false);
+      setUpdating(false);
     }
-    };
+  };
 
+  const cancelEdit = () => {
+    setEditingStaff(null);
 
+    setEditName("");
+    setEditRole("");
+    setEditPhone("");
+    setEditEmail("");
+    setEditSalary("");
+    setEditEmploymentDate("");
+    setEditEmploymentEndDate("");
+    setEditActive(true);
+  };
+
+  if (!authorized) {
+    return <div>Checking permissions...</div>;
+  }
 
   if (loading) {
     return <div>Loading staff...</div>;
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between">
+    <div>
+      
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Staff Management
+          <h1 className="text-3xl font-bold text-gray-900">
+            Staff Directory
           </h1>
 
-          <p className="mt-1 text-gray-600">
-            Manage lodge staff and their salary information.
+          <p className="mt-2 text-gray-600">
+            View and manage lodge staff information.
           </p>
         </div>
 
-        
-        <div className="mt-6 flex items-center gap-3">
+        {canManage && (
+          <button
+            type="button"
+            onClick={() => {
+              setEditingStaff(null);
+
+              if (showForm) {
+                resetForm();
+              }
+
+              setShowForm(!showForm);
+            }}
+            className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
+          >
+            {showForm ? "Cancel" : "Add Staff"}
+          </button>
+        )}
+      </div>
+
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <label
-            htmlFor="statusFilter"
-            className="text-sm font-medium text-gray-700"
+          htmlFor="statusFilter"
+          className="text-sm font-medium text-gray-700"
         >
-            Staff Status
+          Staff Status
         </label>
 
         <select
-            id="statusFilter"
-            value={statusFilter}
-            onChange={(event) =>
+          id="statusFilter"
+          value={statusFilter}
+          onChange={(event) =>
             setStatusFilter(
-                event.target.value as "active" | "inactive" | "all"
+              event.target.value as
+                | "active"
+                | "inactive"
+                | "all"
             )
-            }
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2"
+          }
+          className="rounded-lg border border-gray-300 bg-white px-3 py-2"
         >
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="all">All Staff</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="all">All Staff</option>
         </select>
-        </div>
-
-
-
-    
-        <button
-        onClick={() => {
-            setEditingStaff(null);
-            setShowForm(!showForm);
-        }}
-        className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
-        >
-        {showForm ? "Cancel" : "Add Staff"}
-        </button>
-
-
       </div>
 
-      {showForm && (
-        <div className="mt-6 rounded-xl border bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Add Staff
-          </h2>
-
-          <form
-            onSubmit={handleAddStaff}
-            className="mt-5 space-y-4"
-          >
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Name
-              </label>
-
-              <input
-                type="text"
-                value={name}
-                onChange={(event) =>
-                  setName(event.target.value)
-                }
-                required
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Role
-              </label>
-
-              <input
-                type="text"
-                value={role}
-                onChange={(event) =>
-                  setRole(event.target.value)
-                }
-                required
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Salary
-              </label>
-
-              <input
-                type="number"
-                value={salary}
-                onChange={(event) =>
-                  setSalary(event.target.value)
-                }
-                required
-                min="0"
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={active}
-                onChange={(event) =>
-                  setActive(event.target.checked)
-                }
-              />
-
-              <label className="text-sm font-medium text-gray-700">
-                Active
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-lg bg-green-600 px-5 py-2 font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
-            >
-              {saving ? "Saving..." : "Save Staff"}
-            </button>
-          </form>
-        </div>
+      {canManage && showForm && (
+        <StaffForm
+          name={name}
+          role={staffRole}
+          phone={phone}
+          email={email}
+          salary={salary}
+          employmentDate={employmentDate}
+          employmentEndDate={employmentEndDate}
+          active={active}
+          saving={saving}
+          setName={setName}
+          setRole={setStaffRole}
+          setPhone={setPhone}
+          setEmail={setEmail}
+          setSalary={setSalary}
+          setEmploymentDate={setEmploymentDate}
+          setEmploymentEndDate={setEmploymentEndDate}
+          setActive={setActive}
+          onSubmit={handleAddStaff}
+          onCancel={() => {
+            resetForm();
+            setShowForm(false);
+          }}
+        />
       )}
 
-    
-        {editingStaff && (
-        <div className="mt-6 rounded-xl border bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">
-                Edit Staff
-            </h2>
+      {canManage && editingStaff && (
+        <StaffEditForm
+          staff={editingStaff}
+          editName={editName}
+          editRole={editRole}
+          editPhone={editPhone}
+          editEmail={editEmail}
+          editSalary={editSalary}
+          editEmploymentDate={editEmploymentDate}
+          editEmploymentEndDate={editEmploymentEndDate}
+          editActive={editActive}
+          updating={updating}
+          setEditName={setEditName}
+          setEditRole={setEditRole}
+          setEditPhone={setEditPhone}
+          setEditEmail={setEditEmail}
+          setEditSalary={setEditSalary}
+          setEditEmploymentDate={setEditEmploymentDate}
+          setEditEmploymentEndDate={setEditEmploymentEndDate}
+          setEditActive={setEditActive}
+          onSubmit={handleUpdateStaff}
+          onCancel={cancelEdit}
+        />
+      )}
 
-            <button
-                type="button"
-                onClick={() => setEditingStaff(null)}
-                className="text-sm font-medium text-gray-500 hover:text-gray-700"
-            >
-                Cancel
-            </button>
-            </div>
-
-            <form
-            onSubmit={handleUpdateStaff}
-            className="mt-5 space-y-4"
-            >
-            <div>
-                <label className="block text-sm font-medium text-gray-700">
-                Name
-                </label>
-
-                <input
-                type="text"
-                value={editName}
-                onChange={(event) =>
-                    setEditName(event.target.value)
-                }
-                required
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                />
-            </div>
-
-            <div>
-                <label className="block text-sm font-medium text-gray-700">
-                Role
-                </label>
-
-                <input
-                type="text"
-                value={editRole}
-                onChange={(event) =>
-                    setEditRole(event.target.value)
-                }
-                required
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                />
-            </div>
-
-            <div>
-                <label className="block text-sm font-medium text-gray-700">
-                Salary
-                </label>
-
-                <input
-                type="number"
-                value={editSalary}
-                onChange={(event) =>
-                    setEditSalary(event.target.value)
-                }
-                required
-                min="0"
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                />
-            </div>
-
-            <div className="flex items-center gap-2">
-                <input
-                type="checkbox"
-                checked={editActive}
-                onChange={(event) =>
-                    setEditActive(event.target.checked)
-                }
-                />
-
-                <label className="text-sm font-medium text-gray-700">
-                Active
-                </label>
-            </div>
-
-            <button
-                type="submit"
-                disabled={updating}
-                className="rounded-lg bg-blue-600 px-5 py-2 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
-            >
-                {updating ? "Updating..." : "Update Staff"}
-            </button>
-            </form>
-        </div>
-        )}
-
-
-
-      <div className="mt-6 overflow-hidden rounded-xl border bg-white shadow-sm">
-        <table className="w-full">
-          <thead className="border-b bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                Name
-              </th>
-
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                Role
-              </th>
-
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                Salary
-              </th>
-
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                Status
-              </th>
-
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                Action
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {staff.map((person) => (
-              <tr
-                key={person.id}
-                className="border-b last:border-b-0"
-              >
-                <td className="px-4 py-4">
-                  {person.name}
-                </td>
-
-                <td className="px-4 py-4">
-                  {person.role}
-                </td>
-
-                <td className="px-4 py-4">
-                  {formatCurrency(person.salary)}
-                </td>
-
-                <td className="px-4 py-4">
-                  {person.active ? "Active" : "Inactive"}
-                </td>
-
-                <td className="px-4 py-4">
-                
-            <button
-            onClick={() => handleEditClick(person)}
-            className="font-medium text-blue-600 hover:underline"
-            >
-            Edit
-            </button>
-
-
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="mt-6">
+        <StaffDirectory
+          staff={staff}
+          onEdit={handleEditClick}
+          canManage={canManage}
+        />
       </div>
     </div>
   );

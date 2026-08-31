@@ -6,22 +6,13 @@ from .models import Room
 class RoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
-        fields = [
+        fields = "__all__"
+        read_only_fields = (
             "id",
-            "room_name",
-            "room_type",
-            "price_per_night",
-            "status",
-            "description",
-            "amenities",
-            "bed_type",
-            "maximum_occupancy",
-            "floor_location",
-            "internal_notes",
-            "active",
+            "lodge",
             "created_at",
             "updated_at",
-        ]
+        )
 
     def validate(self, data):
         """
@@ -35,6 +26,7 @@ class RoomSerializer(serializers.ModelSerializer):
         if (
             self.instance
             and new_status == "Available"
+            and self.instance.status != "Available"
             and self.instance.status not in ["Cleaning", "Maintenance"]
         ):
             raise serializers.ValidationError(
