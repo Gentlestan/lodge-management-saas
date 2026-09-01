@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/auth";
-import AppLayout from "@/components/layout/AppLayout";
+
 
 
 type DashboardReservation = {

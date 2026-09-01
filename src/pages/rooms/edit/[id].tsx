@@ -17,6 +17,7 @@ export default function EditRoom() {
   const [bedType, setBedType] = useState("");
   const [maximumOccupancy, setMaximumOccupancy] = useState("");
   const [floorLocation, setFloorLocation] = useState("");
+  const [buildingLocation, setBuildingLocation] = useState("");
   const [internalNotes, setInternalNotes] = useState("");
 
   useEffect(() => {
@@ -42,6 +43,7 @@ export default function EditRoom() {
         room.maximum_occupancy?.toString() || ""
       );
       setFloorLocation(room.floor_location || "");
+      setBuildingLocation(room.building_location || "");
       setInternalNotes(room.internal_notes || "");
     };
 
@@ -65,6 +67,7 @@ export default function EditRoom() {
         ? Number(maximumOccupancy)
         : null,
       floor_location: floorLocation,
+      building_location: buildingLocation,
       internal_notes: internalNotes,
       active: true,
     };
@@ -163,6 +166,29 @@ export default function EditRoom() {
                 }
                 required
                 className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+
+            {/* Building / Location */}
+            <div>
+              <label
+                htmlFor="buildingLocation"
+                className="mb-2 block text-sm font-medium text-gray-700"
+              >
+                Building / Location
+                <span className="ml-1 text-xs font-normal text-gray-400">
+                  (Optional)
+                </span>
+              </label>
+
+              <input
+                id="buildingLocation"
+                value={buildingLocation}
+                onChange={(e) =>
+                  setBuildingLocation(e.target.value)
+                }
+                placeholder="e.g. Main Building, Annex, East Wing"
+                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
 

@@ -21,6 +21,7 @@ type Room = {
   amenities: string;
   bed_type: string;
   maximum_occupancy: number | null;
+  building_location: string;
   floor_location: string;
   internal_notes: string;
   active: boolean;
@@ -482,6 +483,17 @@ export default function Rooms() {
 
                       <span className="text-sm font-medium text-gray-700">
                         {room.maximum_occupancy} guests
+                      </span>
+                    </div>
+                  )}
+
+                    {room.building_location && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-500">
+                        Building / Location
+                      </span>
+                      <span className="text-sm font-medium text-gray-700">
+                        {room.building_location}
                       </span>
                     </div>
                   )}

@@ -1,10 +1,10 @@
+
 from rest_framework import serializers
 
 from .models import Room
 
 
 class RoomSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Room
         fields = "__all__"
@@ -17,33 +17,43 @@ class RoomSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """
-        Enforce room status transition rules.
+        Enforce room status rules.
 
-        Manual room management can use:
-        - Available
-        - Cleaning
-        - Maintenance
+        New rooms:
+        - Must start as Available.
 
-        Reserved and Occupied are controlled by the
-        reservation/check-in workflow.
-
-        A room can only be manually changed to Available
-        from Cleaning or Maintenance.
+        Existing rooms:
+        - Reserved and Occupied are controlled by the
+          reservation/check-in workflow.
+        - Available can only be manually selected when the
+          room is currently Cleaning or Maintenance.
         """
 
         instance = self.instance
         new_status = data.get("status")
 
         # ---------------------------------------------------------
-        # MANUAL ROOM STATUS CONTROL
+        # NEW ROOM CREATION
         # ---------------------------------------------------------
+        if instance is None:
+            if new_status and new_status != "Available":
+                raise serializers.ValidationError(
+                    {
+                        "status": (
+                            "New rooms must be created with Available "
+                            "status. Reserved and Occupied statuses are "
+                            "controlled by the reservation and check-in system."
+                        )
+                    }
+                )
 
+        # ---------------------------------------------------------
+        # EXISTING ROOM EDIT
+        # ---------------------------------------------------------
         if instance and new_status:
             current_status = instance.status
 
             # Reserved and Occupied are system-controlled states.
-            # They should not be manually assigned through
-            # the normal room edit endpoint.
             if new_status in ["Reserved", "Occupied"]:
                 raise serializers.ValidationError(
                     {
@@ -55,8 +65,8 @@ class RoomSerializer(serializers.ModelSerializer):
                     }
                 )
 
-            # A room can only be manually marked Available when
-            # it is currently Cleaning or Maintenance.
+            # A room can only be manually changed to Available
+            # from Cleaning or Maintenance.
             if (
                 new_status == "Available"
                 and current_status != "Available"
@@ -76,3 +86,4 @@ class RoomSerializer(serializers.ModelSerializer):
                 )
 
         return data
+

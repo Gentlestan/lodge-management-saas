@@ -19,6 +19,11 @@ class Room(models.Model):
 )
 
     room_name = models.CharField(max_length=100)
+    building_location = models.CharField(
+    max_length=100,
+    blank=True
+)
+    
     room_type = models.CharField(max_length=100)
     price_per_night = models.DecimalField(
         max_digits=10,
