@@ -135,12 +135,43 @@ class PaymentSerializer(serializers.ModelSerializer):
             "payment_method",
             "reference",
             "notes",
+            "recorded_by",
             "created_at",
         ]
         read_only_fields = [
             "id",
+            "recorded_by",
             "created_at",
+
         ]
+
+    def validate_reservation(self, reservation):
+        request = self.context.get("request")
+
+        if not request or not request.user.is_authenticated:
+            raise serializers.ValidationError(
+                "Authentication is required."
+            )
+
+        membership = (
+            request.user.memberships.filter(
+                active=True
+            )
+            .select_related("lodge")
+            .first()
+        )
+
+        if not membership:
+            raise serializers.ValidationError(
+                "No active lodge membership found."
+            )
+
+        if reservation.lodge_id != membership.lodge_id:
+            raise serializers.ValidationError(
+                "You cannot make a payment for a reservation from another lodge."
+            )
+
+        return reservation
 
 
 class ExpenseCategorySerializer(serializers.ModelSerializer):

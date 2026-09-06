@@ -1,11 +1,12 @@
 from django.db import models
+from django.conf import settings
 
 from reservations.models import Reservation
 from tenants.models import Lodge
 
 
 class ServiceItem(models.Model):
-    
+
     lodge = models.ForeignKey(
         Lodge,
         on_delete=models.CASCADE,
@@ -64,7 +65,7 @@ class Charge(models.Model):
         on_delete=models.CASCADE,
         related_name="charges",
     )
-    
+
     service_item = models.ForeignKey(
         ServiceItem,
         on_delete=models.PROTECT,
@@ -136,14 +137,23 @@ class Payment(models.Model):
         blank=True,
     )
 
+    recorded_by = models.ForeignKey(
+    settings.AUTH_USER_MODEL,
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True,
+    related_name="recorded_payments",
+
+    )
+
     created_at = models.DateTimeField(
         auto_now_add=True,
     )
 
     def __str__(self):
         return f"{self.reservation} - {self.amount}"
-    
-    
+
+
 class ExpenseCategory(models.Model):
     lodge = models.ForeignKey(
         Lodge,
@@ -213,7 +223,7 @@ class Staff(models.Model):
     email = models.EmailField(
         blank=True,
     )
-    
+
     employment_date = models.DateField()
     employment_end_date = models.DateField(null=True, blank=True)
 

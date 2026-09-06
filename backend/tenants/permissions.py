@@ -109,7 +109,7 @@ class IsExpenseCategoryManagerOrOwner(BasePermission):
 
         # Only Owner & Manager can modify
         return membership.role in ["Owner", "Manager"]
-    
+
 class IsExpenseManagerOrOwner(BasePermission):
     """
     Owner and Manager can fully manage expenses.
@@ -139,7 +139,7 @@ class IsExpenseManagerOrOwner(BasePermission):
 
         # Only Owner & Manager can modify existing expenses.
         return membership.role in ["Owner", "Manager"]
-    
+
 class IsStaffManagerOrOwner(BasePermission):
     """
     Receptionist can only view staff.
@@ -164,7 +164,7 @@ class IsStaffManagerOrOwner(BasePermission):
 
         # Only Owner & Manager can modify staff
         return membership.role in ["Owner", "Manager"]
-    
+
 class IsSalaryPaymentManagerOrOwner(BasePermission):
     """
     Only Owner and Manager can view or record salary payments.
@@ -184,3 +184,31 @@ class IsSalaryPaymentManagerOrOwner(BasePermission):
             return False
 
         return membership.role in ["Owner", "Manager"]
+
+
+class IsFrontDeskFinanceUser(BasePermission):
+    """
+    Allows Owner, Manager, and Receptionist to access
+    Front Desk Finance.
+
+    This permission is separate from the Owner-only
+    financial summary permission.
+    """
+
+    def has_permission(self, request, view):
+        if request.user.is_superuser:
+            return True
+
+        membership = Membership.objects.filter(
+            user=request.user,
+            active=True,
+        ).first()
+
+        if not membership:
+            return False
+
+        return membership.role in [
+            "Owner",
+            "Manager",
+            "Receptionist",
+        ]

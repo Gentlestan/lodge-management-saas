@@ -2,7 +2,7 @@ from django.utils import timezone
 from decimal import Decimal
 from datetime import datetime
 
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404
 
 from rest_framework import generics
@@ -17,6 +17,7 @@ from tenants.permissions import (
     IsExpenseManagerOrOwner,
     IsStaffManagerOrOwner,
     IsSalaryPaymentManagerOrOwner,
+    IsFrontDeskFinanceUser,
 )
 
 from .models import (
@@ -152,6 +153,320 @@ class PaymentListCreateView(generics.ListCreateAPIView):
 
         return queryset
 
+    def perform_create(self, serializer):
+        serializer.save(recorded_by=self.request.user)
+
+
+
+
+class FrontDeskFinanceView(generics.GenericAPIView):
+    """
+    Returns operational payment information for the front desk.
+
+    Accessible by:
+    - Owner
+    - Manager
+    - Receptionist
+
+    Supports:
+    - Search by guest name, room, or reference
+    - Date filters
+    - Payment method filter
+    - Pagination
+
+    The summary follows the selected date period.
+    """
+
+    permission_classes = [IsFrontDeskFinanceUser]
+
+    def get(self, request):
+        membership = (
+            request.user.memberships.filter(
+                active=True
+            )
+            .select_related("lodge")
+            .first()
+        )
+
+        if not membership:
+            return Response(
+                {"detail": "No active lodge membership found."},
+                status=403,
+            )
+
+        lodge = membership.lodge
+        today = timezone.localdate()
+
+        # --------------------------------
+        # Date filter
+        # --------------------------------
+
+        date_filter = request.query_params.get(
+            "date",
+            "today",
+        )
+
+        summary_start_date = today
+        summary_end_date = today
+
+        if date_filter == "yesterday":
+            yesterday = today - timezone.timedelta(days=1)
+
+            summary_start_date = yesterday
+            summary_end_date = yesterday
+
+        elif date_filter == "this_week":
+            summary_start_date = (
+                today
+                - timezone.timedelta(days=today.weekday())
+            )
+            summary_end_date = today
+
+        elif date_filter == "this_month":
+            summary_start_date = today.replace(day=1)
+            summary_end_date = today
+
+        elif date_filter == "custom":
+            start_date = request.query_params.get(
+                "start_date"
+            )
+            end_date = request.query_params.get(
+                "end_date"
+            )
+
+            if start_date:
+                summary_start_date = start_date
+
+            if end_date:
+                summary_end_date = end_date
+
+        # --------------------------------
+        # Selected-period summary
+        # --------------------------------
+
+        summary_payments = Payment.objects.filter(
+            reservation__lodge=lodge,
+            created_at__date__gte=summary_start_date,
+            created_at__date__lte=summary_end_date,
+        )
+
+        selected_total = (
+            summary_payments.aggregate(
+                total=Sum("amount")
+            )["total"]
+            or Decimal("0.00")
+        )
+
+        cash_total = (
+            summary_payments.filter(
+                payment_method="Cash"
+            )
+            .aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        transfer_total = (
+            summary_payments.filter(
+                payment_method="Transfer"
+            )
+            .aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        pos_total = (
+            summary_payments.filter(
+                payment_method="POS"
+            )
+            .aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        other_total = (
+            summary_payments.filter(
+                payment_method="Other"
+            )
+            .aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        selected_payment_count = summary_payments.count()
+
+        # --------------------------------
+        # Payment transactions
+        # --------------------------------
+
+        payments = (
+            Payment.objects.filter(
+                reservation__lodge=lodge,
+            )
+            .select_related(
+                "reservation",
+                "reservation__guest",
+                "reservation__room",
+                "recorded_by",
+            )
+            .order_by("-created_at")
+        )
+
+        # --------------------------------
+        # Search
+        # --------------------------------
+
+        search = request.query_params.get(
+            "search",
+            "",
+        ).strip()
+
+        if search:
+            payments = payments.filter(
+                Q(
+                    reservation__guest__full_name__icontains=search
+                )
+                | Q(
+                    reservation__room__room_name__icontains=search
+                )
+                | Q(
+                    reference__icontains=search
+                )
+            )
+
+        # --------------------------------
+        # Payment method filter
+        # --------------------------------
+
+        payment_method = request.query_params.get(
+            "payment_method"
+        )
+
+        if payment_method in [
+            "Cash",
+            "Transfer",
+            "POS",
+            "Other",
+        ]:
+            payments = payments.filter(
+                payment_method=payment_method
+            )
+
+        # --------------------------------
+        # Apply date filter to transactions
+        # --------------------------------
+
+        payments = payments.filter(
+            created_at__date__gte=summary_start_date,
+            created_at__date__lte=summary_end_date,
+        )
+
+        # --------------------------------
+        # Pagination
+        # --------------------------------
+
+        try:
+            page = int(
+                request.query_params.get(
+                    "page",
+                    1,
+                )
+            )
+        except (TypeError, ValueError):
+            page = 1
+
+        try:
+            page_size = int(
+                request.query_params.get(
+                    "page_size",
+                    20,
+                )
+            )
+        except (TypeError, ValueError):
+            page_size = 20
+
+        page = max(page, 1)
+        page_size = min(
+            max(page_size, 1),
+            100,
+        )
+
+        total_count = payments.count()
+
+        start_index = (page - 1) * page_size
+        end_index = start_index + page_size
+
+        paginated_payments = payments[
+            start_index:end_index
+        ]
+
+        has_next = end_index < total_count
+        has_previous = page > 1
+
+        # --------------------------------
+        # Transaction response data
+        # --------------------------------
+
+        payment_data = [
+            {
+                "id": payment.id,
+                "reservation": payment.reservation_id,
+                "guest_name": (
+                    payment.reservation.guest.full_name
+                    if payment.reservation.guest
+                    else ""
+                ),
+                "room_name": (
+                    payment.reservation.room.room_name
+                    if payment.reservation.room
+                    else ""
+                ),
+                "amount": payment.amount,
+                "payment_method": payment.payment_method,
+                "reference": payment.reference,
+                "notes": payment.notes,
+                "recorded_by": (
+                payment.recorded_by.username
+                if payment.recorded_by
+                else ""
+            ),
+                "created_at": payment.created_at,
+            }
+            for payment in paginated_payments
+        ]
+
+        # --------------------------------
+        # Response
+        # --------------------------------
+
+        return Response(
+            {
+                "date": today,
+
+                # Selected period
+                "period": {
+                    "filter": date_filter,
+                    "start_date": summary_start_date,
+                    "end_date": summary_end_date,
+                },
+
+                # Selected-period summary
+                "selected_total": selected_total,
+                "cash_total": cash_total,
+                "transfer_total": transfer_total,
+                "pos_total": pos_total,
+                "other_total": other_total,
+                "selected_payment_count": selected_payment_count,
+
+                # Transactions
+                "payments": payment_data,
+
+                # Pagination
+                "pagination": {
+                    "page": page,
+                    "page_size": page_size,
+                    "total_count": total_count,
+                    "has_next": has_next,
+                    "has_previous": has_previous,
+                },
+            }
+        )
 
 class BillingSummaryView(generics.GenericAPIView):
     def get(self, request, reservation_id):

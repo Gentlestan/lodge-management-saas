@@ -56,9 +56,15 @@ const navigation: NavigationSection[] = [
   title: "Finance",
   items: [
     {
+      name: "Front Desk Finance",
+      href: "/front-desk-finance",
+      icon: "₦",
+      roles: ["Owner", "Manager", "Receptionist"],
+    },
+    {
       name: "Financial Overview",
       href: "/admin/financial",
-      icon: "₦",
+      icon: "▣",
       roles: ["Owner"],
     },
     {

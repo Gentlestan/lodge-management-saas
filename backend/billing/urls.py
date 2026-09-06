@@ -5,6 +5,7 @@ from .views import (
     ServiceItemDetailView,
     ChargeListCreateView,
     PaymentListCreateView,
+    FrontDeskFinanceView,
     BillingSummaryView,
     ExpenseCategoryListCreateView,
     ExpenseCategoryDetailView,
@@ -37,12 +38,20 @@ urlpatterns = [
         PaymentListCreateView.as_view(),
         name="payment-list-create",
     ),
+
+    path(
+    "front-desk-finance/",
+    FrontDeskFinanceView.as_view(),
+    name="front-desk-finance",
+
+    ),
+
     path(
         "reservations/<int:reservation_id>/summary/",
         BillingSummaryView.as_view(),
         name="billing-summary",
     ),
-    
+
     path(
     "expense-categories/",
     ExpenseCategoryListCreateView.as_view(),
@@ -65,19 +74,19 @@ urlpatterns = [
     ExpenseDetailView.as_view(),
     name="expense-detail",
     ),
-    
+
     path(
     "financial-summary/",
      FinancialSummaryView.as_view(),
      name="financial-summary",
     ),
-    
+
         path(
         "staff/",
         StaffListCreateView.as_view(),
         name="staff-list-create",
     ),
-        
+
     path(
         "staff/<int:pk>/",
         StaffDetailView.as_view(),
