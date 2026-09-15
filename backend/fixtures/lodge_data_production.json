@@ -1,0 +1,2471 @@
+[
+  {
+    "model": "tenants.lodge",
+    "pk": 1,
+    "fields": {
+      "name": "Demo Lodge",
+      "address": "",
+      "phone": "",
+      "email": "",
+      "active": true,
+      "created_at": "2026-08-26T19:13:09.177Z"
+    }
+  },
+  {
+    "model": "tenants.lodge",
+    "pk": 2,
+    "fields": {
+      "name": "Second Demo Lodge",
+      "address": "Lagos",
+      "phone": "08011111111",
+      "email": "second@demolodge.com",
+      "active": true,
+      "created_at": "2026-08-27T08:33:56.529Z"
+    }
+  },
+  {
+    "model": "tenants.membership",
+    "pk": 1,
+    "fields": {
+      "user": 2,
+      "lodge": 1,
+      "role": "Owner",
+      "active": true,
+      "created_at": "2026-08-26T21:16:47.776Z",
+      "updated_at": "2026-08-26T21:16:47.776Z"
+    }
+  },
+  {
+    "model": "tenants.membership",
+    "pk": 2,
+    "fields": {
+      "user": 3,
+      "lodge": 2,
+      "role": "Owner",
+      "active": true,
+      "created_at": "2026-08-27T08:33:58.317Z",
+      "updated_at": "2026-08-27T08:33:58.317Z"
+    }
+  },
+  {
+    "model": "tenants.membership",
+    "pk": 3,
+    "fields": {
+      "user": 4,
+      "lodge": 2,
+      "role": "Manager",
+      "active": true,
+      "created_at": "2026-08-28T13:23:02.894Z",
+      "updated_at": "2026-08-28T13:23:02.894Z"
+    }
+  },
+  {
+    "model": "tenants.membership",
+    "pk": 4,
+    "fields": {
+      "user": 5,
+      "lodge": 2,
+      "role": "Receptionist",
+      "active": true,
+      "created_at": "2026-08-28T13:34:13.922Z",
+      "updated_at": "2026-08-28T13:34:13.922Z"
+    }
+  },
+  {
+    "model": "rooms.room",
+    "pk": 8,
+    "fields": {
+      "lodge": 1,
+      "room_name": "104",
+      "building_location": "",
+      "room_type": "exclusive",
+      "price_per_night": "35000.00",
+      "status": "Cleaning",
+      "description": "nice room",
+      "amenities": "ac, wifi, netflix",
+      "bed_type": "kings size bed",
+      "maximum_occupancy": 3,
+      "floor_location": "2",
+      "internal_notes": "test note",
+      "active": true,
+      "created_at": "2026-08-22T06:34:51.518Z",
+      "updated_at": "2026-08-25T17:05:45.175Z"
+    }
+  },
+  {
+    "model": "rooms.room",
+    "pk": 9,
+    "fields": {
+      "lodge": 1,
+      "room_name": "102",
+      "building_location": "",
+      "room_type": "standard",
+      "price_per_night": "34000.00",
+      "status": "Reserved",
+      "description": "testing room",
+      "amenities": "ac, wifi, netflix",
+      "bed_type": "kings size bed",
+      "maximum_occupancy": 3,
+      "floor_location": "2",
+      "internal_notes": "test note",
+      "active": true,
+      "created_at": "2026-08-22T06:45:10.513Z",
+      "updated_at": "2026-08-25T16:42:45.839Z"
+    }
+  },
+  {
+    "model": "rooms.room",
+    "pk": 10,
+    "fields": {
+      "lodge": 1,
+      "room_name": "105",
+      "building_location": "",
+      "room_type": "exclusive",
+      "price_per_night": "43000.00",
+      "status": "Available",
+      "description": "",
+      "amenities": "",
+      "bed_type": "",
+      "maximum_occupancy": 3,
+      "floor_location": "1",
+      "internal_notes": "",
+      "active": true,
+      "created_at": "2026-08-22T19:26:02.296Z",
+      "updated_at": "2026-08-23T17:54:34.107Z"
+    }
+  },
+  {
+    "model": "rooms.room",
+    "pk": 11,
+    "fields": {
+      "lodge": 2,
+      "room_name": "201",
+      "building_location": "",
+      "room_type": "Standard",
+      "price_per_night": "38000.00",
+      "status": "Available",
+      "description": "",
+      "amenities": "",
+      "bed_type": "",
+      "maximum_occupancy": 3,
+      "floor_location": "",
+      "internal_notes": "",
+      "active": true,
+      "created_at": "2026-08-27T08:35:36.125Z",
+      "updated_at": "2026-08-31T11:12:32.445Z"
+    }
+  },
+  {
+    "model": "rooms.room",
+    "pk": 12,
+    "fields": {
+      "lodge": 2,
+      "room_name": "Room 202",
+      "building_location": "",
+      "room_type": "Deluxe",
+      "price_per_night": "27000.00",
+      "status": "Cleaning",
+      "description": "",
+      "amenities": "ac, wifi",
+      "bed_type": "king size",
+      "maximum_occupancy": 2,
+      "floor_location": "",
+      "internal_notes": "",
+      "active": true,
+      "created_at": "2026-08-27T16:12:37.684Z",
+      "updated_at": "2026-08-28T17:00:16.007Z"
+    }
+  },
+  {
+    "model": "rooms.room",
+    "pk": 13,
+    "fields": {
+      "lodge": 2,
+      "room_name": "203",
+      "building_location": "",
+      "room_type": "Standard",
+      "price_per_night": "30000.00",
+      "status": "Cleaning",
+      "description": "Test room",
+      "amenities": "WiFi, AC",
+      "bed_type": "Queen",
+      "maximum_occupancy": 2,
+      "floor_location": "2nd Floor",
+      "internal_notes": "",
+      "active": false,
+      "created_at": "2026-08-28T16:20:41.962Z",
+      "updated_at": "2026-08-31T11:36:08.834Z"
+    }
+  },
+  {
+    "model": "rooms.room",
+    "pk": 14,
+    "fields": {
+      "lodge": 2,
+      "room_name": "205",
+      "building_location": "",
+      "room_type": "Standard",
+      "price_per_night": "35000.00",
+      "status": "Available",
+      "description": "Receptionist permission test",
+      "amenities": "WiFi",
+      "bed_type": "Queen",
+      "maximum_occupancy": 2,
+      "floor_location": "2nd Floor",
+      "internal_notes": "",
+      "active": true,
+      "created_at": "2026-08-28T16:32:11.824Z",
+      "updated_at": "2026-08-31T11:38:54.040Z"
+    }
+  },
+  {
+    "model": "rooms.room",
+    "pk": 15,
+    "fields": {
+      "lodge": 2,
+      "room_name": "Room 205",
+      "building_location": "",
+      "room_type": "Deluxe",
+      "price_per_night": "34000.00",
+      "status": "Reserved",
+      "description": "",
+      "amenities": "ac, wifi, netflix",
+      "bed_type": "king size",
+      "maximum_occupancy": 3,
+      "floor_location": "",
+      "internal_notes": "2",
+      "active": true,
+      "created_at": "2026-08-31T04:21:34.304Z",
+      "updated_at": "2026-08-31T10:16:25.110Z"
+    }
+  },
+  {
+    "model": "rooms.room",
+    "pk": 16,
+    "fields": {
+      "lodge": 2,
+      "room_name": "301",
+      "building_location": "",
+      "room_type": "Deluxe",
+      "price_per_night": "26000.00",
+      "status": "Cleaning",
+      "description": "",
+      "amenities": "ac, wifi",
+      "bed_type": "king size",
+      "maximum_occupancy": 3,
+      "floor_location": "1",
+      "internal_notes": "",
+      "active": true,
+      "created_at": "2026-08-31T05:05:48.924Z",
+      "updated_at": "2026-08-31T11:28:42.885Z"
+    }
+  },
+  {
+    "model": "rooms.room",
+    "pk": 17,
+    "fields": {
+      "lodge": 2,
+      "room_name": "Room 505",
+      "building_location": "",
+      "room_type": "Deluxe",
+      "price_per_night": "50000.00",
+      "status": "Available",
+      "description": "Room End to End Testing",
+      "amenities": "ac, wifi, netflix",
+      "bed_type": "king size",
+      "maximum_occupancy": 3,
+      "floor_location": "1",
+      "internal_notes": "",
+      "active": true,
+      "created_at": "2026-08-31T08:29:29.997Z",
+      "updated_at": "2026-08-31T11:14:10.158Z"
+    }
+  },
+  {
+    "model": "rooms.room",
+    "pk": 18,
+    "fields": {
+      "lodge": 1,
+      "room_name": "106",
+      "building_location": "Main Building",
+      "room_type": "standard",
+      "price_per_night": "30000.00",
+      "status": "Available",
+      "description": "",
+      "amenities": "",
+      "bed_type": "king size",
+      "maximum_occupancy": 2,
+      "floor_location": "1",
+      "internal_notes": "",
+      "active": true,
+      "created_at": "2026-08-31T18:31:24.495Z",
+      "updated_at": "2026-08-31T18:31:24.495Z"
+    }
+  },
+  {
+    "model": "rooms.room",
+    "pk": 19,
+    "fields": {
+      "lodge": 1,
+      "room_name": "Backend Status Test",
+      "building_location": "",
+      "room_type": "Standard",
+      "price_per_night": "30000.00",
+      "status": "Reserved",
+      "description": "",
+      "amenities": "",
+      "bed_type": "",
+      "maximum_occupancy": 2,
+      "floor_location": "",
+      "internal_notes": "",
+      "active": true,
+      "created_at": "2026-08-31T18:49:15.067Z",
+      "updated_at": "2026-08-31T18:49:15.067Z"
+    }
+  },
+  {
+    "model": "rooms.room",
+    "pk": 20,
+    "fields": {
+      "lodge": 1,
+      "room_name": "Backend Status Test 2",
+      "building_location": "Main Building",
+      "room_type": "Deluxe",
+      "price_per_night": "30000.00",
+      "status": "Available",
+      "description": "",
+      "amenities": "",
+      "bed_type": "",
+      "maximum_occupancy": 2,
+      "floor_location": "",
+      "internal_notes": "",
+      "active": true,
+      "created_at": "2026-08-31T19:03:36.818Z",
+      "updated_at": "2026-08-31T19:38:42.689Z"
+    }
+  },
+  {
+    "model": "guests.guest",
+    "pk": 4,
+    "fields": {
+      "lodge": 1,
+      "full_name": "Mary Johnson",
+      "phone_number": "08098765432",
+      "email": "mary@example.com",
+      "address": "abuja,nigeria",
+      "id_type": "Driver's License",
+      "id_number": "test45367",
+      "gender": "Female",
+      "notes": "guest test",
+      "created_at": "2026-08-22T07:29:27.103Z",
+      "updated_at": "2026-08-22T15:18:55.766Z",
+      "active": true
+    }
+  },
+  {
+    "model": "guests.guest",
+    "pk": 5,
+    "fields": {
+      "lodge": 1,
+      "full_name": "Ohazulike Gentle",
+      "phone_number": "08062991395",
+      "email": "sohazulike@gmail.com",
+      "address": "Abuja",
+      "id_type": null,
+      "id_number": null,
+      "gender": "Female",
+      "notes": "testing - regression test",
+      "created_at": "2026-08-23T21:45:19.238Z",
+      "updated_at": "2026-08-31T19:43:42.182Z",
+      "active": true
+    }
+  },
+  {
+    "model": "guests.guest",
+    "pk": 6,
+    "fields": {
+      "lodge": 2,
+      "full_name": "3rd Lodge Guest",
+      "phone_number": "08022222233",
+      "email": "guest@secondlodge.com",
+      "address": null,
+      "id_type": null,
+      "id_number": null,
+      "gender": null,
+      "notes": null,
+      "created_at": "2026-08-27T08:35:36.113Z",
+      "updated_at": "2026-08-27T16:38:30.053Z",
+      "active": false
+    }
+  },
+  {
+    "model": "guests.guest",
+    "pk": 7,
+    "fields": {
+      "lodge": 2,
+      "full_name": "3rd Lodge Guest",
+      "phone_number": "0805454545",
+      "email": "sohazulike@gmail.com",
+      "address": "71B phase 1, ACO, opposite former Oloye., Abuja Municipal Area Council",
+      "id_type": null,
+      "id_number": null,
+      "gender": null,
+      "notes": null,
+      "created_at": "2026-08-27T16:43:35.027Z",
+      "updated_at": "2026-09-01T09:00:26.817Z",
+      "active": false
+    }
+  },
+  {
+    "model": "guests.guest",
+    "pk": 8,
+    "fields": {
+      "lodge": 2,
+      "full_name": "John Test 1",
+      "phone_number": "08000000000",
+      "email": "johntestexample@gmail.com",
+      "address": null,
+      "id_type": null,
+      "id_number": null,
+      "gender": null,
+      "notes": null,
+      "created_at": "2026-08-31T04:26:21.067Z",
+      "updated_at": "2026-08-31T07:10:17.520Z",
+      "active": true
+    }
+  },
+  {
+    "model": "guests.guest",
+    "pk": 9,
+    "fields": {
+      "lodge": 2,
+      "full_name": "monday isiaka",
+      "phone_number": "0903241212",
+      "email": "monday@gmail.com",
+      "address": "guest1",
+      "id_type": null,
+      "id_number": null,
+      "gender": null,
+      "notes": null,
+      "created_at": "2026-09-01T09:00:15.379Z",
+      "updated_at": "2026-09-01T09:00:15.379Z",
+      "active": true
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 1,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 8,
+      "room_rate": null,
+      "check_in_date": "2026-08-23",
+      "check_out_date": "2026-08-27",
+      "number_of_guests": 4,
+      "status": "Checked Out",
+      "special_requests": "we might arrive a little bit late, say 10pm",
+      "notes": "",
+      "created_at": "2026-08-22T14:32:43.883Z",
+      "updated_at": "2026-08-23T14:35:06.967Z",
+      "checked_in_at": "2026-08-23T14:33:41.247Z",
+      "checked_out_at": "2026-08-23T14:35:06.967Z"
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 2,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 8,
+      "room_rate": null,
+      "check_in_date": "2026-08-27",
+      "check_out_date": "2026-08-30",
+      "number_of_guests": 2,
+      "status": "Cancelled",
+      "special_requests": "",
+      "notes": "Second reservation test",
+      "created_at": "2026-08-22T14:41:10.747Z",
+      "updated_at": "2026-08-24T17:42:23.565Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 4,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 8,
+      "room_rate": null,
+      "check_in_date": "2026-09-01",
+      "check_out_date": "2026-09-03",
+      "number_of_guests": 2,
+      "status": "Cancelled",
+      "special_requests": "",
+      "notes": "Updated reservation test",
+      "created_at": "2026-08-22T16:50:35.255Z",
+      "updated_at": "2026-08-22T17:11:11.208Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 5,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 9,
+      "room_rate": null,
+      "check_in_date": "2026-08-22",
+      "check_out_date": "2026-08-25",
+      "number_of_guests": 2,
+      "status": "Checked Out",
+      "special_requests": "",
+      "notes": "Check-in test",
+      "created_at": "2026-08-22T17:51:34.098Z",
+      "updated_at": "2026-08-22T19:12:13.663Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 6,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 10,
+      "room_rate": null,
+      "check_in_date": "2026-08-22",
+      "check_out_date": "2026-08-25",
+      "number_of_guests": 2,
+      "status": "Checked Out",
+      "special_requests": "",
+      "notes": "Check-out workflow test",
+      "created_at": "2026-08-22T19:28:22.956Z",
+      "updated_at": "2026-08-22T19:31:58.211Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 7,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 9,
+      "room_rate": null,
+      "check_in_date": "2026-08-30",
+      "check_out_date": "2026-09-05",
+      "number_of_guests": 3,
+      "status": "Reserved",
+      "special_requests": "",
+      "notes": "testing reservation",
+      "created_at": "2026-08-23T13:47:48.463Z",
+      "updated_at": "2026-08-23T13:47:48.463Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 8,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 9,
+      "room_rate": null,
+      "check_in_date": "2026-08-23",
+      "check_out_date": "2026-08-23",
+      "number_of_guests": 2,
+      "status": "Checked Out",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-23T15:17:07.991Z",
+      "updated_at": "2026-08-23T15:18:53.511Z",
+      "checked_in_at": "2026-08-23T15:18:14.260Z",
+      "checked_out_at": "2026-08-23T15:18:53.511Z"
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 9,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 10,
+      "room_rate": null,
+      "check_in_date": "2026-08-27",
+      "check_out_date": "2026-08-30",
+      "number_of_guests": 2,
+      "status": "Cancelled",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-23T16:20:14.019Z",
+      "updated_at": "2026-08-23T16:20:14.019Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 10,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 10,
+      "room_rate": null,
+      "check_in_date": "2026-08-27",
+      "check_out_date": "2026-08-30",
+      "number_of_guests": 2,
+      "status": "Cancelled",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-23T16:28:24.828Z",
+      "updated_at": "2026-08-23T16:28:24.828Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 11,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 10,
+      "room_rate": null,
+      "check_in_date": "2026-08-27",
+      "check_out_date": "2026-08-30",
+      "number_of_guests": 2,
+      "status": "Reserved",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-23T17:57:34.943Z",
+      "updated_at": "2026-08-23T17:57:34.943Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 12,
+    "fields": {
+      "lodge": 1,
+      "guest": 7,
+      "room": 12,
+      "room_rate": "27000.00",
+      "check_in_date": "2026-09-02",
+      "check_out_date": "2026-09-03",
+      "number_of_guests": 2,
+      "status": "Reserved",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-23T18:11:24.501Z",
+      "updated_at": "2026-08-27T19:24:18.208Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 13,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 10,
+      "room_rate": null,
+      "check_in_date": "2026-08-23",
+      "check_out_date": "2026-08-24",
+      "number_of_guests": 2,
+      "status": "Checked In",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-23T18:13:32.649Z",
+      "updated_at": "2026-08-23T18:14:10.128Z",
+      "checked_in_at": "2026-08-23T18:14:10.128Z",
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 14,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 8,
+      "room_rate": null,
+      "check_in_date": "2026-08-30",
+      "check_out_date": "2026-09-01",
+      "number_of_guests": 2,
+      "status": "Cancelled",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-23T18:53:46.124Z",
+      "updated_at": "2026-08-23T18:53:46.124Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 15,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 8,
+      "room_rate": null,
+      "check_in_date": "2026-08-28",
+      "check_out_date": "2026-08-30",
+      "number_of_guests": 2,
+      "status": "Cancelled",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-24T15:29:03.644Z",
+      "updated_at": "2026-08-25T08:04:03.919Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 16,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 8,
+      "room_rate": "35000.00",
+      "check_in_date": "2026-08-24",
+      "check_out_date": "2026-08-25",
+      "number_of_guests": 2,
+      "status": "Checked Out",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-24T17:44:23.441Z",
+      "updated_at": "2026-08-25T11:14:43.240Z",
+      "checked_in_at": "2026-08-24T17:45:56.888Z",
+      "checked_out_at": "2026-08-25T11:14:43.240Z"
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 17,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 8,
+      "room_rate": "35000.00",
+      "check_in_date": "2026-08-25",
+      "check_out_date": "2026-08-25",
+      "number_of_guests": 2,
+      "status": "Checked Out",
+      "special_requests": "",
+      "notes": "Test reserved",
+      "created_at": "2026-08-25T11:49:54.220Z",
+      "updated_at": "2026-08-25T12:40:27.061Z",
+      "checked_in_at": "2026-08-25T11:56:39.183Z",
+      "checked_out_at": "2026-08-25T12:40:27.061Z"
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 18,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 9,
+      "room_rate": "34000.00",
+      "check_in_date": "2026-08-25",
+      "check_out_date": "2026-08-25",
+      "number_of_guests": 1,
+      "status": "Checked Out",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-25T14:55:42.867Z",
+      "updated_at": "2026-08-25T15:23:02.017Z",
+      "checked_in_at": "2026-08-25T15:15:02.174Z",
+      "checked_out_at": "2026-08-25T15:23:02.017Z"
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 19,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 8,
+      "room_rate": "35000.00",
+      "check_in_date": "2026-09-07",
+      "check_out_date": "2026-09-12",
+      "number_of_guests": 2,
+      "status": "Cancelled",
+      "special_requests": "",
+      "notes": "Reservation test",
+      "created_at": "2026-08-25T16:12:17.039Z",
+      "updated_at": "2026-08-25T16:12:17.039Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 20,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 8,
+      "room_rate": "35000.00",
+      "check_in_date": "2026-09-15",
+      "check_out_date": "2026-09-18",
+      "number_of_guests": 2,
+      "status": "Cancelled",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-25T16:30:52.065Z",
+      "updated_at": "2026-08-25T16:30:52.065Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 21,
+    "fields": {
+      "lodge": 1,
+      "guest": 5,
+      "room": 9,
+      "room_rate": "34000.00",
+      "check_in_date": "2026-08-25",
+      "check_out_date": "2026-08-25",
+      "number_of_guests": 2,
+      "status": "Checked Out",
+      "special_requests": "",
+      "notes": "testing",
+      "created_at": "2026-08-25T16:35:03.757Z",
+      "updated_at": "2026-08-25T16:39:45.387Z",
+      "checked_in_at": "2026-08-25T16:35:14.888Z",
+      "checked_out_at": "2026-08-25T16:39:45.387Z"
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 22,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 8,
+      "room_rate": "35000.00",
+      "check_in_date": "2026-09-23",
+      "check_out_date": "2026-09-25",
+      "number_of_guests": 2,
+      "status": "Cancelled",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-25T17:07:09.114Z",
+      "updated_at": "2026-08-25T17:07:09.114Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 23,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 8,
+      "room_rate": "35000.00",
+      "check_in_date": "2026-09-26",
+      "check_out_date": "2026-09-28",
+      "number_of_guests": 2,
+      "status": "Cancelled",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-25T17:09:55.034Z",
+      "updated_at": "2026-08-25T17:09:55.034Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 24,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 8,
+      "room_rate": "35000.00",
+      "check_in_date": "2026-09-26",
+      "check_out_date": "2026-09-28",
+      "number_of_guests": 2,
+      "status": "Cancelled",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-25T17:24:07.163Z",
+      "updated_at": "2026-08-25T17:24:07.163Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 25,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 9,
+      "room_rate": "34000.00",
+      "check_in_date": "2026-09-26",
+      "check_out_date": "2026-09-28",
+      "number_of_guests": 2,
+      "status": "Reserved",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-25T17:31:34.326Z",
+      "updated_at": "2026-08-25T17:33:24.000Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 26,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 10,
+      "room_rate": "43000.00",
+      "check_in_date": "2026-09-04",
+      "check_out_date": "2026-09-06",
+      "number_of_guests": 1,
+      "status": "Reserved",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-25T17:44:53.829Z",
+      "updated_at": "2026-08-31T20:02:44.696Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 27,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 10,
+      "room_rate": "43000.00",
+      "check_in_date": "2026-09-06",
+      "check_out_date": "2026-09-09",
+      "number_of_guests": 2,
+      "status": "Cancelled",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-25T19:08:08.809Z",
+      "updated_at": "2026-08-25T19:08:08.809Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 28,
+    "fields": {
+      "lodge": 1,
+      "guest": 4,
+      "room": 10,
+      "room_rate": "43000.00",
+      "check_in_date": "2026-08-25",
+      "check_out_date": "2026-08-25",
+      "number_of_guests": 2,
+      "status": "Checked Out",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-25T19:11:28.251Z",
+      "updated_at": "2026-08-25T20:11:48.696Z",
+      "checked_in_at": "2026-08-25T19:13:21.675Z",
+      "checked_out_at": "2026-08-25T20:11:48.696Z"
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 29,
+    "fields": {
+      "lodge": 2,
+      "guest": 6,
+      "room": 11,
+      "room_rate": "50000.00",
+      "check_in_date": "2026-08-27",
+      "check_out_date": "2026-08-28",
+      "number_of_guests": 1,
+      "status": "Cancelled",
+      "special_requests": null,
+      "notes": null,
+      "created_at": "2026-08-27T08:35:36.142Z",
+      "updated_at": "2026-08-27T08:35:36.142Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 30,
+    "fields": {
+      "lodge": 2,
+      "guest": 7,
+      "room": 11,
+      "room_rate": "50000.00",
+      "check_in_date": "2026-08-28",
+      "check_out_date": "2026-08-29",
+      "number_of_guests": 2,
+      "status": "Cancelled",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-27T18:16:11.865Z",
+      "updated_at": "2026-08-27T18:16:11.865Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 31,
+    "fields": {
+      "lodge": 2,
+      "guest": 7,
+      "room": 12,
+      "room_rate": "27000.00",
+      "check_in_date": "2026-08-28",
+      "check_out_date": "2026-08-28",
+      "number_of_guests": 2,
+      "status": "Checked Out",
+      "special_requests": "",
+      "notes": "testing reservation flow",
+      "created_at": "2026-08-28T07:36:27.882Z",
+      "updated_at": "2026-08-28T07:43:27.926Z",
+      "checked_in_at": "2026-08-28T07:36:46.634Z",
+      "checked_out_at": "2026-08-28T07:43:27.926Z"
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 32,
+    "fields": {
+      "lodge": 2,
+      "guest": 7,
+      "room": 12,
+      "room_rate": "27000.00",
+      "check_in_date": "2026-08-29",
+      "check_out_date": "2026-08-31",
+      "number_of_guests": 2,
+      "status": "Checked In",
+      "special_requests": "",
+      "notes": "Manager reservation test",
+      "created_at": "2026-08-28T17:53:49.164Z",
+      "updated_at": "2026-08-30T20:18:31.773Z",
+      "checked_in_at": "2026-08-30T20:18:31.773Z",
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 33,
+    "fields": {
+      "lodge": 2,
+      "guest": 7,
+      "room": 11,
+      "room_rate": "50000.00",
+      "check_in_date": "2026-08-30",
+      "check_out_date": "2026-08-31",
+      "number_of_guests": 1,
+      "status": "Cancelled",
+      "special_requests": "",
+      "notes": "Receptionist reservation test",
+      "created_at": "2026-08-28T17:55:33.926Z",
+      "updated_at": "2026-08-28T17:55:33.926Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 34,
+    "fields": {
+      "lodge": 2,
+      "guest": 7,
+      "room": 13,
+      "room_rate": "30000.00",
+      "check_in_date": "2026-08-28",
+      "check_out_date": "2026-08-28",
+      "number_of_guests": 1,
+      "status": "Checked Out",
+      "special_requests": "",
+      "notes": "Same day check-in test",
+      "created_at": "2026-08-28T17:57:46.106Z",
+      "updated_at": "2026-08-28T18:38:25.771Z",
+      "checked_in_at": "2026-08-28T17:58:57.228Z",
+      "checked_out_at": "2026-08-28T18:38:25.771Z"
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 35,
+    "fields": {
+      "lodge": 1,
+      "guest": 5,
+      "room": 8,
+      "room_rate": "35000.00",
+      "check_in_date": "2026-08-30",
+      "check_out_date": "2026-08-31",
+      "number_of_guests": 1,
+      "status": "Checked Out",
+      "special_requests": "",
+      "notes": "Lodge 1 cross-lodge security test",
+      "created_at": "2026-08-28T22:02:55.111Z",
+      "updated_at": "2026-08-31T20:15:55.111Z",
+      "checked_in_at": "2026-08-31T20:11:59.009Z",
+      "checked_out_at": "2026-08-31T20:15:55.111Z"
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 36,
+    "fields": {
+      "lodge": 2,
+      "guest": 8,
+      "room": 15,
+      "room_rate": "34000.00",
+      "check_in_date": "2026-08-31",
+      "check_out_date": "2026-09-01",
+      "number_of_guests": 3,
+      "status": "Reserved",
+      "special_requests": "",
+      "notes": "testing reservation",
+      "created_at": "2026-08-31T06:09:11.733Z",
+      "updated_at": "2026-08-31T06:17:37.976Z",
+      "checked_in_at": null,
+      "checked_out_at": null
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 37,
+    "fields": {
+      "lodge": 2,
+      "guest": 8,
+      "room": 17,
+      "room_rate": "50000.00",
+      "check_in_date": "2026-08-31",
+      "check_out_date": "2026-08-31",
+      "number_of_guests": 3,
+      "status": "Checked Out",
+      "special_requests": "I willneed a driver early morning",
+      "notes": "",
+      "created_at": "2026-08-31T08:53:39.410Z",
+      "updated_at": "2026-08-31T09:10:12.081Z",
+      "checked_in_at": "2026-08-31T08:53:59.593Z",
+      "checked_out_at": "2026-08-31T09:10:12.081Z"
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 38,
+    "fields": {
+      "lodge": 2,
+      "guest": 7,
+      "room": 12,
+      "room_rate": "27000.00",
+      "check_in_date": "2026-08-31",
+      "check_out_date": "2026-09-01",
+      "number_of_guests": 2,
+      "status": "Checked Out",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-31T09:15:31.410Z",
+      "updated_at": "2026-09-01T20:51:16.261Z",
+      "checked_in_at": "2026-08-31T09:16:19.808Z",
+      "checked_out_at": "2026-09-01T20:51:16.260Z"
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 39,
+    "fields": {
+      "lodge": 1,
+      "guest": 5,
+      "room": 20,
+      "room_rate": "30000.00",
+      "check_in_date": "2026-08-31",
+      "check_out_date": "2026-08-31",
+      "number_of_guests": 2,
+      "status": "Checked Out",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-08-31T19:12:44.774Z",
+      "updated_at": "2026-08-31T19:26:48.652Z",
+      "checked_in_at": "2026-08-31T19:21:54.997Z",
+      "checked_out_at": "2026-08-31T19:26:48.652Z"
+    }
+  },
+  {
+    "model": "reservations.reservation",
+    "pk": 40,
+    "fields": {
+      "lodge": 2,
+      "guest": 9,
+      "room": 16,
+      "room_rate": "26000.00",
+      "check_in_date": "2026-09-01",
+      "check_out_date": "2026-09-01",
+      "number_of_guests": 2,
+      "status": "Checked Out",
+      "special_requests": "",
+      "notes": "",
+      "created_at": "2026-09-01T09:05:52.204Z",
+      "updated_at": "2026-09-01T09:07:28.903Z",
+      "checked_in_at": "2026-09-01T09:06:29.636Z",
+      "checked_out_at": "2026-09-01T09:07:28.903Z"
+    }
+  },
+  {
+    "model": "billing.serviceitem",
+    "pk": 1,
+    "fields": {
+      "lodge": 1,
+      "category": "Food",
+      "name": "Rice & Chicken",
+      "price": "5000.00",
+      "active": true,
+      "created_at": "2026-08-24T09:58:24.510Z",
+      "updated_at": "2026-08-24T09:58:24.510Z"
+    }
+  },
+  {
+    "model": "billing.serviceitem",
+    "pk": 2,
+    "fields": {
+      "lodge": 1,
+      "category": "Food",
+      "name": "Porridge Yam",
+      "price": "2000.00",
+      "active": true,
+      "created_at": "2026-08-24T09:59:21.137Z",
+      "updated_at": "2026-08-24T09:59:21.137Z"
+    }
+  },
+  {
+    "model": "billing.serviceitem",
+    "pk": 3,
+    "fields": {
+      "lodge": 1,
+      "category": "Drinks",
+      "name": "Coke",
+      "price": "800.00",
+      "active": true,
+      "created_at": "2026-08-24T09:59:45.336Z",
+      "updated_at": "2026-08-24T09:59:45.336Z"
+    }
+  },
+  {
+    "model": "billing.serviceitem",
+    "pk": 4,
+    "fields": {
+      "lodge": 1,
+      "category": "Accommodation",
+      "name": "Room Accommodation",
+      "price": "50000.00",
+      "active": true,
+      "created_at": "2026-08-27T08:39:38.750Z",
+      "updated_at": "2026-08-27T08:39:38.750Z"
+    }
+  },
+  {
+    "model": "billing.serviceitem",
+    "pk": 5,
+    "fields": {
+      "lodge": 2,
+      "category": "Food",
+      "name": "Lodge 2 Jollof Rice",
+      "price": "7000.00",
+      "active": true,
+      "created_at": "2026-08-27T09:06:18.826Z",
+      "updated_at": "2026-08-27T09:06:18.826Z"
+    }
+  },
+  {
+    "model": "billing.serviceitem",
+    "pk": 6,
+    "fields": {
+      "lodge": 2,
+      "category": "Drinks",
+      "name": "Lodge 2 Coke",
+      "price": "1000.00",
+      "active": true,
+      "created_at": "2026-08-27T09:23:08.405Z",
+      "updated_at": "2026-08-27T09:23:08.405Z"
+    }
+  },
+  {
+    "model": "billing.serviceitem",
+    "pk": 7,
+    "fields": {
+      "lodge": 2,
+      "category": "Food",
+      "name": "Manager Test Breakfast",
+      "price": "5500.00",
+      "active": false,
+      "created_at": "2026-08-28T20:23:01.176Z",
+      "updated_at": "2026-08-28T20:25:08.674Z"
+    }
+  },
+  {
+    "model": "billing.serviceitem",
+    "pk": 8,
+    "fields": {
+      "lodge": 1,
+      "category": "Food",
+      "name": "Lodge 1 Secret Meal",
+      "price": "9000.00",
+      "active": true,
+      "created_at": "2026-08-28T20:51:38.349Z",
+      "updated_at": "2026-08-28T20:51:38.349Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 1,
+    "fields": {
+      "reservation": 2,
+      "service_item": null,
+      "category": "Accommodation",
+      "description": "2 night accomodation",
+      "quantity": 1,
+      "unit_price": "30000.00",
+      "created_at": "2026-08-24T08:37:00.770Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 2,
+    "fields": {
+      "reservation": 2,
+      "service_item": null,
+      "category": "Accommodation",
+      "description": "2 night accomodation",
+      "quantity": 2,
+      "unit_price": "30000.00",
+      "created_at": "2026-08-24T08:37:53.299Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 3,
+    "fields": {
+      "reservation": 2,
+      "service_item": null,
+      "category": "Food",
+      "description": "lunch",
+      "quantity": 1,
+      "unit_price": "5000.00",
+      "created_at": "2026-08-24T08:43:12.714Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 4,
+    "fields": {
+      "reservation": 2,
+      "service_item": null,
+      "category": "Drinks",
+      "description": "Drinks and snack",
+      "quantity": 1,
+      "unit_price": "5000.00",
+      "created_at": "2026-08-24T08:47:47.569Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 5,
+    "fields": {
+      "reservation": 2,
+      "service_item": 1,
+      "category": "Food",
+      "description": "Rice & Chicken",
+      "quantity": 2,
+      "unit_price": "5000.00",
+      "created_at": "2026-08-24T10:16:11.003Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 6,
+    "fields": {
+      "reservation": 16,
+      "service_item": null,
+      "category": "Accommodation",
+      "description": "Room 104",
+      "quantity": 3,
+      "unit_price": "35000.00",
+      "created_at": "2026-08-24T17:45:56.901Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 7,
+    "fields": {
+      "reservation": 16,
+      "service_item": 1,
+      "category": "Food",
+      "description": "Rice & Chicken",
+      "quantity": 2,
+      "unit_price": "5000.00",
+      "created_at": "2026-08-24T18:57:54.239Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 8,
+    "fields": {
+      "reservation": 16,
+      "service_item": 3,
+      "category": "Drinks",
+      "description": "Coke",
+      "quantity": 2,
+      "unit_price": "800.00",
+      "created_at": "2026-08-25T02:52:05.797Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 9,
+    "fields": {
+      "reservation": 16,
+      "service_item": 2,
+      "category": "Food",
+      "description": "Porridge Yam",
+      "quantity": 2,
+      "unit_price": "2000.00",
+      "created_at": "2026-08-25T05:24:31.212Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 10,
+    "fields": {
+      "reservation": 16,
+      "service_item": 2,
+      "category": "Food",
+      "description": "Porridge Yam",
+      "quantity": 1,
+      "unit_price": "2000.00",
+      "created_at": "2026-08-25T05:49:42.383Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 11,
+    "fields": {
+      "reservation": 17,
+      "service_item": 1,
+      "category": "Food",
+      "description": "Rice & Chicken",
+      "quantity": 1,
+      "unit_price": "5000.00",
+      "created_at": "2026-08-25T11:51:54.516Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 12,
+    "fields": {
+      "reservation": 17,
+      "service_item": 2,
+      "category": "Food",
+      "description": "Porridge Yam",
+      "quantity": 1,
+      "unit_price": "2000.00",
+      "created_at": "2026-08-25T11:52:02.069Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 13,
+    "fields": {
+      "reservation": 17,
+      "service_item": null,
+      "category": "Accommodation",
+      "description": "Room 104",
+      "quantity": 1,
+      "unit_price": "35000.00",
+      "created_at": "2026-08-25T11:56:39.192Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 14,
+    "fields": {
+      "reservation": 18,
+      "service_item": null,
+      "category": "Accommodation",
+      "description": "Room 102",
+      "quantity": 3,
+      "unit_price": "34000.00",
+      "created_at": "2026-08-25T15:15:02.185Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 15,
+    "fields": {
+      "reservation": 21,
+      "service_item": null,
+      "category": "Accommodation",
+      "description": "Room 102",
+      "quantity": 2,
+      "unit_price": "34000.00",
+      "created_at": "2026-08-25T16:35:14.899Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 16,
+    "fields": {
+      "reservation": 28,
+      "service_item": null,
+      "category": "Accommodation",
+      "description": "Room 105",
+      "quantity": 1,
+      "unit_price": "43000.00",
+      "created_at": "2026-08-25T19:13:21.686Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 18,
+    "fields": {
+      "reservation": 29,
+      "service_item": 4,
+      "category": "Accommodation",
+      "description": "Room Accommodation",
+      "quantity": 1,
+      "unit_price": "50000.00",
+      "created_at": "2026-08-27T08:41:39.466Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 20,
+    "fields": {
+      "reservation": 29,
+      "service_item": 5,
+      "category": "Food",
+      "description": "Lodge 2 Jollof Rice",
+      "quantity": 1,
+      "unit_price": "7000.00",
+      "created_at": "2026-08-27T14:09:30.142Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 21,
+    "fields": {
+      "reservation": 31,
+      "service_item": null,
+      "category": "Accommodation",
+      "description": "Room Room 202",
+      "quantity": 1,
+      "unit_price": "27000.00",
+      "created_at": "2026-08-28T07:36:46.645Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 22,
+    "fields": {
+      "reservation": 31,
+      "service_item": 5,
+      "category": "Food",
+      "description": "Lodge 2 Jollof Rice",
+      "quantity": 3,
+      "unit_price": "7000.00",
+      "created_at": "2026-08-28T07:42:14.346Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 23,
+    "fields": {
+      "reservation": 34,
+      "service_item": null,
+      "category": "Accommodation",
+      "description": "Room 203",
+      "quantity": 1,
+      "unit_price": "30000.00",
+      "created_at": "2026-08-28T17:58:57.236Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 24,
+    "fields": {
+      "reservation": 34,
+      "service_item": 6,
+      "category": "Drinks",
+      "description": "Lodge 2 Coke",
+      "quantity": 2,
+      "unit_price": "1000.00",
+      "created_at": "2026-08-28T21:52:17.230Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 25,
+    "fields": {
+      "reservation": 34,
+      "service_item": 6,
+      "category": "Drinks",
+      "description": "Lodge 2 Coke",
+      "quantity": 1,
+      "unit_price": "1000.00",
+      "created_at": "2026-08-28T22:24:28.579Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 26,
+    "fields": {
+      "reservation": 32,
+      "service_item": null,
+      "category": "Accommodation",
+      "description": "Room Room 202",
+      "quantity": 2,
+      "unit_price": "27000.00",
+      "created_at": "2026-08-30T20:18:31.789Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 27,
+    "fields": {
+      "reservation": 37,
+      "service_item": null,
+      "category": "Accommodation",
+      "description": "Room Room 505",
+      "quantity": 1,
+      "unit_price": "50000.00",
+      "created_at": "2026-08-31T08:53:59.601Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 28,
+    "fields": {
+      "reservation": 37,
+      "service_item": 5,
+      "category": "Food",
+      "description": "Lodge 2 Jollof Rice",
+      "quantity": 3,
+      "unit_price": "7000.00",
+      "created_at": "2026-08-31T09:09:31.874Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 29,
+    "fields": {
+      "reservation": 38,
+      "service_item": null,
+      "category": "Accommodation",
+      "description": "Room Room 202",
+      "quantity": 1,
+      "unit_price": "27000.00",
+      "created_at": "2026-08-31T09:16:19.822Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 30,
+    "fields": {
+      "reservation": 38,
+      "service_item": 5,
+      "category": "Food",
+      "description": "Lodge 2 Jollof Rice",
+      "quantity": 2,
+      "unit_price": "7000.00",
+      "created_at": "2026-08-31T09:17:22.659Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 31,
+    "fields": {
+      "reservation": 39,
+      "service_item": null,
+      "category": "Accommodation",
+      "description": "Room Backend Status Test 2",
+      "quantity": 1,
+      "unit_price": "30000.00",
+      "created_at": "2026-08-31T19:21:55.014Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 32,
+    "fields": {
+      "reservation": 35,
+      "service_item": null,
+      "category": "Accommodation",
+      "description": "Room 104",
+      "quantity": 1,
+      "unit_price": "35000.00",
+      "created_at": "2026-08-31T20:11:59.022Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 33,
+    "fields": {
+      "reservation": 40,
+      "service_item": null,
+      "category": "Accommodation",
+      "description": "Room 301",
+      "quantity": 1,
+      "unit_price": "26000.00",
+      "created_at": "2026-09-01T09:06:29.646Z"
+    }
+  },
+  {
+    "model": "billing.charge",
+    "pk": 34,
+    "fields": {
+      "reservation": 38,
+      "service_item": 6,
+      "category": "Drinks",
+      "description": "Lodge 2 Coke",
+      "quantity": 2,
+      "unit_price": "1000.00",
+      "created_at": "2026-09-01T20:50:09.019Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 1,
+    "fields": {
+      "reservation": 2,
+      "amount": "30000.00",
+      "payment_method": "Cash",
+      "reference": "TEST-001",
+      "notes": "Initial payment",
+      "recorded_by": null,
+      "created_at": "2026-08-24T08:39:53.171Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 2,
+    "fields": {
+      "reservation": 2,
+      "amount": "3500.00",
+      "payment_method": "Cash",
+      "reference": "Drink 001",
+      "notes": "Partial payment for drinks and snack",
+      "recorded_by": null,
+      "created_at": "2026-08-24T08:50:05.910Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 3,
+    "fields": {
+      "reservation": 16,
+      "amount": "10000.00",
+      "payment_method": "Transfer",
+      "reference": "",
+      "notes": "initial deposit",
+      "recorded_by": null,
+      "created_at": "2026-08-25T05:25:54.115Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 4,
+    "fields": {
+      "reservation": 16,
+      "amount": "13000.00",
+      "payment_method": "Cash",
+      "reference": "",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-25T05:50:04.165Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 5,
+    "fields": {
+      "reservation": 16,
+      "amount": "99600.00",
+      "payment_method": "Transfer",
+      "reference": "test payment",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-25T11:14:26.475Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 6,
+    "fields": {
+      "reservation": 17,
+      "amount": "42000.00",
+      "payment_method": "Cash",
+      "reference": "",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-25T12:40:16.725Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 7,
+    "fields": {
+      "reservation": 18,
+      "amount": "102000.00",
+      "payment_method": "Cash",
+      "reference": "",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-25T15:22:14.799Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 8,
+    "fields": {
+      "reservation": 21,
+      "amount": "68000.00",
+      "payment_method": "Transfer",
+      "reference": "",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-25T16:39:31.219Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 9,
+    "fields": {
+      "reservation": 28,
+      "amount": "43000.00",
+      "payment_method": "Cash",
+      "reference": "",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-25T20:11:31.288Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 10,
+    "fields": {
+      "reservation": 29,
+      "amount": "50000.00",
+      "payment_method": "Cash",
+      "reference": "",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-27T08:36:56.996Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 11,
+    "fields": {
+      "reservation": 31,
+      "amount": "48000.00",
+      "payment_method": "Cash",
+      "reference": "",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-28T07:43:06.138Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 12,
+    "fields": {
+      "reservation": 34,
+      "amount": "30000.00",
+      "payment_method": "Cash",
+      "reference": "ROLE-TEST-001",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-28T18:25:59.099Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 13,
+    "fields": {
+      "reservation": 34,
+      "amount": "30000.00",
+      "payment_method": "Cash",
+      "reference": "ROLE-TEST-001",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-28T18:27:38.014Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 14,
+    "fields": {
+      "reservation": 32,
+      "amount": "10000.00",
+      "payment_method": "Cash",
+      "reference": "ROLE-TEST-OWNER-001",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-28T18:29:51.072Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 15,
+    "fields": {
+      "reservation": 34,
+      "amount": "1000.00",
+      "payment_method": "Cash",
+      "reference": "ROLE-TEST-MANAGER-001",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-28T22:31:36.227Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 16,
+    "fields": {
+      "reservation": 34,
+      "amount": "500.00",
+      "payment_method": "Cash",
+      "reference": "ROLE-TEST-RECEPTIONIST-001",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-28T22:33:09.368Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 17,
+    "fields": {
+      "reservation": 34,
+      "amount": "500.00",
+      "payment_method": "Cash",
+      "reference": "ROLE-TEST-RECEPTIONIST-001",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-28T22:33:29.791Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 18,
+    "fields": {
+      "reservation": 37,
+      "amount": "71000.00",
+      "payment_method": "Transfer",
+      "reference": "",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-31T09:09:57.214Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 19,
+    "fields": {
+      "reservation": 38,
+      "amount": "18000.00",
+      "payment_method": "Transfer",
+      "reference": "",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-31T09:18:11.209Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 20,
+    "fields": {
+      "reservation": 39,
+      "amount": "30000.00",
+      "payment_method": "POS",
+      "reference": "",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-31T19:26:34.316Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 21,
+    "fields": {
+      "reservation": 35,
+      "amount": "35000.00",
+      "payment_method": "Cash",
+      "reference": "",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-08-31T20:15:02.947Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 22,
+    "fields": {
+      "reservation": 40,
+      "amount": "26000.00",
+      "payment_method": "Transfer",
+      "reference": "",
+      "notes": "",
+      "recorded_by": null,
+      "created_at": "2026-09-01T09:07:10.002Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 23,
+    "fields": {
+      "reservation": 1,
+      "amount": "50000.00",
+      "payment_method": "Transfer",
+      "reference": "TRX-001",
+      "notes": "Deposit payment",
+      "recorded_by": null,
+      "created_at": "2026-09-01T12:32:06.060Z"
+    }
+  },
+  {
+    "model": "billing.payment",
+    "pk": 24,
+    "fields": {
+      "reservation": 38,
+      "amount": "25000.00",
+      "payment_method": "Cash",
+      "reference": "",
+      "notes": "",
+      "recorded_by": 5,
+      "created_at": "2026-09-01T20:50:45.914Z"
+    }
+  },
+  {
+    "model": "billing.expensecategory",
+    "pk": 1,
+    "fields": {
+      "lodge": 1,
+      "name": "fuel",
+      "description": "Fuel and diesel expenses",
+      "active": true,
+      "created_at": "2026-08-26T03:37:53.800Z",
+      "updated_at": "2026-08-26T03:37:53.800Z"
+    }
+  },
+  {
+    "model": "billing.expensecategory",
+    "pk": 2,
+    "fields": {
+      "lodge": 2,
+      "name": "Fuel",
+      "description": "Generator fuel",
+      "active": true,
+      "created_at": "2026-08-27T11:19:42.513Z",
+      "updated_at": "2026-08-27T11:19:42.513Z"
+    }
+  },
+  {
+    "model": "billing.expensecategory",
+    "pk": 3,
+    "fields": {
+      "lodge": 2,
+      "name": "Cleaning Supplies",
+      "description": "Detergent and toiletries",
+      "active": true,
+      "created_at": "2026-08-29T05:13:39.399Z",
+      "updated_at": "2026-08-29T05:13:39.399Z"
+    }
+  },
+  {
+    "model": "billing.expensecategory",
+    "pk": 4,
+    "fields": {
+      "lodge": 2,
+      "name": "Receptionist Test Category",
+      "description": "Should be blocked",
+      "active": true,
+      "created_at": "2026-08-29T05:15:02.985Z",
+      "updated_at": "2026-08-29T05:15:02.985Z"
+    }
+  },
+  {
+    "model": "billing.expensecategory",
+    "pk": 5,
+    "fields": {
+      "lodge": 2,
+      "name": "Receptionist Test Category 2",
+      "description": "Should be blocked",
+      "active": true,
+      "created_at": "2026-08-29T05:17:59.398Z",
+      "updated_at": "2026-08-29T05:17:59.398Z"
+    }
+  },
+  {
+    "model": "billing.expensecategory",
+    "pk": 6,
+    "fields": {
+      "lodge": 2,
+      "name": "Electricity",
+      "description": "Unit bought",
+      "active": true,
+      "created_at": "2026-08-31T03:50:43.128Z",
+      "updated_at": "2026-08-31T03:50:43.128Z"
+    }
+  },
+  {
+    "model": "billing.expense",
+    "pk": 1,
+    "fields": {
+      "lodge": 1,
+      "category": 1,
+      "date": "2026-08-26",
+      "amount": "15000.00",
+      "description": "Diesel for generator",
+      "created_at": "2026-08-26T03:41:10.213Z",
+      "updated_at": "2026-08-26T03:41:10.213Z"
+    }
+  },
+  {
+    "model": "billing.expense",
+    "pk": 7,
+    "fields": {
+      "lodge": 2,
+      "category": 3,
+      "date": "2026-08-31",
+      "amount": "5000.00",
+      "description": "omo, klin",
+      "created_at": "2026-08-31T03:49:55.524Z",
+      "updated_at": "2026-08-31T03:49:55.524Z"
+    }
+  },
+  {
+    "model": "billing.expense",
+    "pk": 8,
+    "fields": {
+      "lodge": 2,
+      "category": 2,
+      "date": "2026-08-31",
+      "amount": "20000.00",
+      "description": "10 litres of fuel",
+      "created_at": "2026-08-31T03:57:44.820Z",
+      "updated_at": "2026-08-31T03:57:44.820Z"
+    }
+  },
+  {
+    "model": "billing.expense",
+    "pk": 9,
+    "fields": {
+      "lodge": 2,
+      "category": 6,
+      "date": "2026-08-31",
+      "amount": "10000.00",
+      "description": "Test Electricity Expense",
+      "created_at": "2026-08-31T04:32:26.063Z",
+      "updated_at": "2026-08-31T04:32:26.063Z"
+    }
+  },
+  {
+    "model": "billing.staff",
+    "pk": 1,
+    "fields": {
+      "lodge": 1,
+      "name": "John",
+      "role": "Receptionist",
+      "phone": "",
+      "email": "",
+      "employment_date": "2026-08-29",
+      "employment_end_date": null,
+      "salary": "80000.00",
+      "active": true,
+      "created_at": "2026-08-26T05:54:59.666Z",
+      "updated_at": "2026-08-26T11:14:48.208Z"
+    }
+  },
+  {
+    "model": "billing.staff",
+    "pk": 2,
+    "fields": {
+      "lodge": 1,
+      "name": "Mary",
+      "role": "security",
+      "phone": "",
+      "email": "",
+      "employment_date": "2026-08-29",
+      "employment_end_date": null,
+      "salary": "70000.00",
+      "active": true,
+      "created_at": "2026-08-26T13:51:36.996Z",
+      "updated_at": "2026-08-26T16:11:17.926Z"
+    }
+  },
+  {
+    "model": "billing.staff",
+    "pk": 3,
+    "fields": {
+      "lodge": 2,
+      "name": "Lodge 2 Receptionist",
+      "role": "Receptionist",
+      "phone": "0806299657",
+      "email": "sohnyjk@gmail.com",
+      "employment_date": "2026-08-29",
+      "employment_end_date": null,
+      "salary": "90000.00",
+      "active": true,
+      "created_at": "2026-08-27T13:28:16.948Z",
+      "updated_at": "2026-08-30T03:59:25.810Z"
+    }
+  },
+  {
+    "model": "billing.staff",
+    "pk": 4,
+    "fields": {
+      "lodge": 2,
+      "name": "john Adebayo",
+      "role": "security1",
+      "phone": "",
+      "email": "",
+      "employment_date": "2026-08-29",
+      "employment_end_date": null,
+      "salary": "65000.00",
+      "active": false,
+      "created_at": "2026-08-28T10:40:26.065Z",
+      "updated_at": "2026-08-28T10:40:54.518Z"
+    }
+  },
+  {
+    "model": "billing.staff",
+    "pk": 5,
+    "fields": {
+      "lodge": 2,
+      "name": "Receptionist Test Staff",
+      "role": "Test Role",
+      "phone": "",
+      "email": "",
+      "employment_date": "2026-08-29",
+      "employment_end_date": null,
+      "salary": "50000.00",
+      "active": true,
+      "created_at": "2026-08-29T07:48:14.051Z",
+      "updated_at": "2026-08-29T07:48:14.051Z"
+    }
+  },
+  {
+    "model": "billing.staff",
+    "pk": 6,
+    "fields": {
+      "lodge": 2,
+      "name": "Receptionist Test Staff",
+      "role": "Test Role",
+      "phone": "",
+      "email": "",
+      "employment_date": "2026-08-29",
+      "employment_end_date": null,
+      "salary": "50000.00",
+      "active": false,
+      "created_at": "2026-08-29T07:51:49.424Z",
+      "updated_at": "2026-08-30T04:07:59.353Z"
+    }
+  },
+  {
+    "model": "billing.staff",
+    "pk": 7,
+    "fields": {
+      "lodge": 2,
+      "name": "Manager Test Staff",
+      "role": "Security",
+      "phone": "",
+      "email": "",
+      "employment_date": "2026-08-29",
+      "employment_end_date": null,
+      "salary": "75000.00",
+      "active": false,
+      "created_at": "2026-08-29T08:05:02.538Z",
+      "updated_at": "2026-08-29T08:07:29.678Z"
+    }
+  },
+  {
+    "model": "billing.staff",
+    "pk": 8,
+    "fields": {
+      "lodge": 2,
+      "name": "Philip Esosa",
+      "role": "cook",
+      "phone": "09087876756",
+      "email": "philip12@gmail.com",
+      "employment_date": "2026-08-29",
+      "employment_end_date": null,
+      "salary": "74000.00",
+      "active": true,
+      "created_at": "2026-08-29T09:55:55.758Z",
+      "updated_at": "2026-08-29T09:56:14.263Z"
+    }
+  },
+  {
+    "model": "billing.salarypayment",
+    "pk": 1,
+    "fields": {
+      "staff": 1,
+      "amount": "80000.00",
+      "payment_date": "2026-08-26",
+      "salary_month": "2026-08-01",
+      "notes": "August salary",
+      "created_at": "2026-08-26T05:57:11.020Z"
+    }
+  },
+  {
+    "model": "billing.salarypayment",
+    "pk": 2,
+    "fields": {
+      "staff": 1,
+      "amount": "85000.00",
+      "payment_date": "2026-09-28",
+      "salary_month": "2026-09-01",
+      "notes": "September Salary",
+      "created_at": "2026-08-26T15:13:39.103Z"
+    }
+  },
+  {
+    "model": "billing.salarypayment",
+    "pk": 3,
+    "fields": {
+      "staff": 2,
+      "amount": "70000.00",
+      "payment_date": "2026-10-01",
+      "salary_month": "2026-10-01",
+      "notes": "",
+      "created_at": "2026-08-26T16:30:07.181Z"
+    }
+  },
+  {
+    "model": "billing.salarypayment",
+    "pk": 4,
+    "fields": {
+      "staff": 3,
+      "amount": "80000.00",
+      "payment_date": "2026-08-27",
+      "salary_month": "2026-08-01",
+      "notes": "August salary",
+      "created_at": "2026-08-27T13:33:09.941Z"
+    }
+  },
+  {
+    "model": "billing.salarypayment",
+    "pk": 7,
+    "fields": {
+      "staff": 3,
+      "amount": "80000.00",
+      "payment_date": "2026-09-28",
+      "salary_month": "2026-09-01",
+      "notes": "",
+      "created_at": "2026-08-30T04:24:07.350Z"
+    }
+  },
+  {
+    "model": "billing.salarypayment",
+    "pk": 8,
+    "fields": {
+      "staff": 3,
+      "amount": "80000.00",
+      "payment_date": "2026-08-28",
+      "salary_month": "2026-07-01",
+      "notes": "",
+      "created_at": "2026-08-30T20:02:06.216Z"
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 2,
+    "fields": {
+      "password": "pbkdf2_sha256$1500000$rmmITKjEb4d7V88sT1SY93$8weK0UrdgsH1QPWeUnNaqO8nDjF4Kv6nsK8NXDgxRmQ=",
+      "last_login": null,
+      "is_superuser": false,
+      "username": "demoowner",
+      "first_name": "",
+      "last_name": "",
+      "email": "owner@demolodge.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-08-26T21:15:52.364Z",
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 3,
+    "fields": {
+      "password": "pbkdf2_sha256$1500000$kGQDMfANPOPPoQ1j3E4SKO$HDS+rsrHup1vw0YxqIS6CPs+daI81SeTHbHmBR0dmsQ=",
+      "last_login": null,
+      "is_superuser": false,
+      "username": "secondowner",
+      "first_name": "",
+      "last_name": "",
+      "email": "secondowner@demolodge.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-08-27T08:33:56.537Z",
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 4,
+    "fields": {
+      "password": "pbkdf2_sha256$1500000$wltKYK46fmj6PxTxVkr9iN$H4Y/EXLkmVV5Rp15hUg/HoNrN0xfUHYnN9EnrNkrLq4=",
+      "last_login": null,
+      "is_superuser": false,
+      "username": "secondmanager",
+      "first_name": "",
+      "last_name": "",
+      "email": "secondmanager@demolodge.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-08-28T13:22:59.297Z",
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 5,
+    "fields": {
+      "password": "pbkdf2_sha256$1500000$8la9AftMST1BmZz3xwz4nl$nGVl03K1DQH5vNqCUzt18tDcPjpBR86udC+Dbce7KVc=",
+      "last_login": null,
+      "is_superuser": false,
+      "username": "secondreceptionist",
+      "first_name": "",
+      "last_name": "",
+      "email": "secondreceptionist@demolodge.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-08-28T13:34:11.680Z",
+      "groups": [],
+      "user_permissions": []
+    }
+  }
+]
