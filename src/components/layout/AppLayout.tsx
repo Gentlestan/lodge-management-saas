@@ -1,36 +1,48 @@
-
 import { ReactNode, useEffect, useState } from "react";
+
 import { useRouter } from "next/router";
 
 import { logout, getAuth } from "@/lib/auth";
+
 import Sidebar from "./Sidebar";
 
 type AppLayoutProps = {
   children: ReactNode;
 };
 
-export default function AppLayout({
-  children,
-}: AppLayoutProps) {
+export default function AppLayout({ children }: AppLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("");
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   const router = useRouter();
 
   useEffect(() => {
     const auth = getAuth();
 
-    if (auth) {
-      setUserName(auth.user.username);
-      setUserRole(auth.role);
+    if (!auth) {
+      router.replace("/login");
+      return;
     }
-  }, []);
+
+    setUserName(auth.user.username);
+    setUserRole(auth.role);
+    setCheckingAuth(false);
+  }, [router]);
 
   const handleLogout = () => {
     logout();
     router.replace("/login");
   };
+
+  if (checkingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <p className="text-sm text-slate-500">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -56,7 +68,6 @@ export default function AppLayout({
                 <p className="text-sm font-semibold text-slate-900">
                   Lodge Management
                 </p>
-
                 <p className="hidden text-xs text-slate-500 sm:block">
                   Manage your lodge operations
                 </p>
@@ -70,7 +81,6 @@ export default function AppLayout({
                 aria-label="Notifications"
               >
                 <span className="text-lg">🔔</span>
-
                 <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-blue-600" />
               </button>
 
@@ -85,7 +95,6 @@ export default function AppLayout({
                   <p className="text-sm font-semibold text-slate-900">
                     {userName || "User"}
                   </p>
-
                   <p className="text-xs text-slate-500">
                     {userRole || "Staff"}
                   </p>
@@ -103,13 +112,10 @@ export default function AppLayout({
           </header>
 
           <main className="flex-1 p-4 sm:p-6 lg:p-8">
-            <div className="mx-auto w-full max-w-7xl">
-              {children}
-            </div>
+            <div className="mx-auto w-full max-w-7xl">{children}</div>
           </main>
         </div>
       </div>
     </div>
   );
 }
-
