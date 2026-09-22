@@ -240,7 +240,7 @@ export default function Dashboard() {
         {/* Occupancy */}
         <div className="mb-8 rounded-xl bg-white p-6 shadow">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xl font-semibold">
+            <h2 className="text-xl font-semibold text-gray-800">
               Occupancy Rate
             </h2>
 
@@ -261,7 +261,7 @@ export default function Dashboard() {
 
                  {/* Operational Alerts */}
         <div className="mb-8 rounded-xl bg-white p-6 shadow">
-        <h2 className="mb-4 text-xl font-semibold">
+        <h2 className="mb-4 text-xl font-semibold text-gray-800">
             Operational Alerts
         </h2>
 
@@ -316,7 +316,7 @@ export default function Dashboard() {
 
           {/* Today's Activity */}
           <div className="rounded-xl bg-white p-6 shadow">
-            <h2 className="mb-4 text-xl font-semibold">
+            <h2 className="mb-4 text-xl font-semibold text-gray-800">
               Today's Activity
             </h2>
 
@@ -324,33 +324,33 @@ export default function Dashboard() {
 
               {/* Check-ins */}
               <div className="flex items-center justify-between rounded-lg bg-gray-50 p-4">
-                <span>
+                <span className="text-gray-700">
                   Today's Check-ins
                 </span>
 
-                <span className="text-xl font-bold">
+                <span className="text-xl font-bold text-gray-900">
                   {todaysCheckIns}
                 </span>
               </div>
 
               {/* Check-outs */}
               <div className="flex items-center justify-between rounded-lg bg-gray-50 p-4">
-                <span>
+                <span className="text-gray-700">
                   Today's Check-outs
                 </span>
 
-                <span className="text-xl font-bold">
+                <span className="text-xl font-bold text-gray-900">
                   {todaysCheckOuts}
                 </span>
               </div>
 
               {/* Current Guests */}
               <div className="flex items-center justify-between rounded-lg bg-gray-50 p-4">
-                <span>
+                <span className="text-gray-700">
                   Current Guests
                 </span>
 
-                <span className="text-xl font-bold">
+                <span className="text-xl font-bold text-gray-900">
                   {dashboard.current_guests}
                 </span>
               </div>
@@ -359,7 +359,7 @@ export default function Dashboard() {
 
           {/* Quick Actions */}
           <div className="rounded-xl bg-white p-6 shadow">
-            <h2 className="mb-4 text-xl font-semibold">
+            <h2 className="mb-4 text-xl font-semibold text-gray-800">
               Quick Actions
             </h2>
 
@@ -401,7 +401,7 @@ export default function Dashboard() {
 
         {/* Upcoming Check-ins */}
         <div className="mb-8 rounded-xl bg-white p-6 shadow">
-          <h2 className="mb-4 text-xl font-semibold">
+          <h2 className="mb-4 text-xl font-semibold text-gray-800">
             Upcoming Check-ins
           </h2>
 
