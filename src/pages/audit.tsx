@@ -55,7 +55,6 @@ export default function Audit() {
       }
 
       const data: AuditLog[] = await response.json();
-
       setAuditLogs(data);
     } catch (error) {
       console.error(error);
@@ -72,34 +71,182 @@ export default function Audit() {
     }).format(new Date(value));
   };
 
-  const formatChanges = (changes: Record<string, unknown>) => {
-    const entries = Object.entries(changes);
-
-    if (entries.length === 0) {
+  const formatDate = (value: unknown) => {
+    if (!value) {
       return "—";
     }
 
-    return entries
-      .map(([field, value]) => {
-        if (
-          typeof value === "object" &&
-          value !== null &&
-          "from" in value &&
-          "to" in value
-        ) {
-          const change = value as {
-            from: unknown;
-            to: unknown;
-          };
+    const date = new Date(String(value));
 
-          return `${field}: ${String(change.from ?? "—")} → ${String(
-            change.to ?? "—"
-          )}`;
-        }
+    if (Number.isNaN(date.getTime())) {
+      return String(value);
+    }
 
-        return `${field}: ${String(value)}`;
-      })
-      .join(", ");
+    return new Intl.DateTimeFormat("en-NG", {
+      dateStyle: "medium",
+    }).format(date);
+  };
+
+  const formatCurrency = (value: unknown) => {
+    if (value === null || value === undefined || value === "") {
+      return "—";
+    }
+
+    const number = Number(value);
+
+    if (Number.isNaN(number)) {
+      return String(value);
+    }
+
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      minimumFractionDigits: 2,
+    }).format(number);
+  };
+
+  const fieldLabels: Record<string, string> = {
+    category_id: "Category",
+    amount: "Amount",
+    date: "Date",
+    description: "Description",
+    payment_method: "Payment Method",
+    reference: "Reference",
+    reservation_id: "Reservation",
+    room_id: "Room",
+    guest_id: "Guest",
+    service_item_id: "Service Item",
+    quantity: "Quantity",
+    unit_price: "Unit Price",
+    staff_id: "Staff",
+    payment_date: "Payment Date",
+    salary_month: "Salary Month",
+    status: "Status",
+    room_rate: "Room Rate",
+    check_in_date: "Check-in Date",
+    check_out_date: "Check-out Date",
+  };
+
+  const formatFieldValue = (
+    field: string,
+    value: unknown,
+    log: AuditLog
+  ) => {
+    if (value === null || value === undefined || value === "") {
+      return "—";
+    }
+
+    if (field === "amount" || field === "unit_price" || field === "room_rate") {
+      return formatCurrency(value);
+    }
+
+    if (
+      field === "date" ||
+      field === "payment_date" ||
+      field === "salary_month" ||
+      field === "check_in_date" ||
+      field === "check_out_date"
+    ) {
+      return formatDate(value);
+    }
+
+    if (field === "category_id" && log.details.category_name) {
+      return String(log.details.category_name);
+    }
+
+    if (field === "staff_id" && log.details.staff_name) {
+      return String(log.details.staff_name);
+    }
+
+    if (field === "service_item_id" && log.details.service_item_name) {
+      return String(log.details.service_item_name);
+    }
+
+    return String(value);
+  };
+
+  const formatChanges = (log: AuditLog) => {
+    const entries = Object.entries(log.changes);
+
+    if (entries.length === 0) {
+      return (
+        <span className="text-gray-500">
+          No specific changes recorded.
+        </span>
+      );
+    }
+
+    return (
+      <div className="space-y-1.5">
+        {entries.map(([field, value]) => {
+          const label = fieldLabels[field] || field;
+
+          if (
+            typeof value === "object" &&
+            value !== null &&
+            "from" in value &&
+            "to" in value
+          ) {
+            const change = value as {
+              from: unknown;
+              to: unknown;
+            };
+
+            const fromValue = formatFieldValue(
+              field,
+              change.from,
+              log
+            );
+
+            const toValue = formatFieldValue(
+              field,
+              change.to,
+              log
+            );
+
+            const isCreation =
+              change.from === null ||
+              change.from === undefined;
+
+            return (
+              <div key={field}>
+                <span className="font-medium text-gray-900">
+                  {label}:
+                </span>{" "}
+                {isCreation ? (
+                  <span className="text-gray-700">
+                    {toValue}
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-gray-500">
+                      {fromValue}
+                    </span>{" "}
+                    <span className="mx-1 text-gray-400">
+                      →
+                    </span>{" "}
+                    <span className="font-medium text-gray-700">
+                      {toValue}
+                    </span>
+                  </>
+                )}
+              </div>
+            );
+          }
+
+          return (
+            <div key={field}>
+              <span className="font-medium text-gray-900">
+                {label}:
+              </span>{" "}
+              <span className="text-gray-700">
+                {formatFieldValue(field, value, log)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   if (loading) {
@@ -152,8 +299,8 @@ export default function Audit() {
               <table className="w-full text-left">
                 <thead className="bg-gray-50 text-sm text-gray-600">
                   <tr>
-                    <th className="px-6 py-4 font-medium">
-                      Date & Time
+                    <th className="whitespace-nowrap px-6 py-4 font-medium">
+                      Date &amp; Time
                     </th>
 
                     <th className="px-6 py-4 font-medium">
@@ -172,7 +319,7 @@ export default function Audit() {
                       Target
                     </th>
 
-                    <th className="px-6 py-4 font-medium">
+                    <th className="min-w-[320px] px-6 py-4 font-medium">
                       Changes
                     </th>
                   </tr>
@@ -216,8 +363,8 @@ export default function Audit() {
                         )}
                       </td>
 
-                      <td className="min-w-[280px] px-6 py-4 text-sm text-gray-700">
-                        {formatChanges(log.changes)}
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {formatChanges(log)}
                       </td>
                     </tr>
                   ))}
@@ -230,4 +377,3 @@ export default function Audit() {
     </div>
   );
 }
-
