@@ -608,7 +608,7 @@ return (
           onChange={(e) =>
             setCategoryFilter(e.target.value)
           }
-          className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 sm:max-w-sm"
+          className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2  text-gray-900 sm:max-w-sm"
         >
           <option value="">
             All Categories
