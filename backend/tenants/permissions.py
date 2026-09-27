@@ -184,6 +184,26 @@ class IsSalaryPaymentManagerOrOwner(BasePermission):
             return False
 
         return membership.role in ["Owner", "Manager"]
+    
+    
+class IsOwnerOnly(BasePermission):
+    """
+    Only the lodge Owner can access owner-only resources.
+    """
+
+    def has_permission(self, request, view):
+        if request.user.is_superuser:
+            return True
+
+        membership = Membership.objects.filter(
+            user=request.user,
+            active=True,
+        ).first()
+
+        if not membership:
+            return False
+
+        return membership.role == "Owner"
 
 
 class IsFrontDeskFinanceUser(BasePermission):

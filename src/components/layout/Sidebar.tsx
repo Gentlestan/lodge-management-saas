@@ -90,6 +90,12 @@ const navigation: NavigationSection[] = [
         icon: "₦",
         roles: ["Owner", "Manager"],
       },
+      {
+      name: "Audit Log",
+      href: "/audit",
+      icon: "◷",
+      roles: ["Owner"],
+    },
     ],
   },
 ];

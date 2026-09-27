@@ -9,6 +9,11 @@ from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 
+from django.db import transaction
+
+from audit.models import AuditLog
+from audit.services import AuditService
+
 from reservations.models import Reservation
 
 from tenants.permissions import (
@@ -103,7 +108,6 @@ class ChargeListCreateView(generics.ListCreateAPIView):
             .select_related("lodge")
             .first()
         )
-
         if not membership:
             return Charge.objects.none()
 
@@ -114,13 +118,52 @@ class ChargeListCreateView(generics.ListCreateAPIView):
         reservation_id = self.request.query_params.get(
             "reservation"
         )
-
         if reservation_id:
             queryset = queryset.filter(
                 reservation_id=reservation_id
             )
 
         return queryset
+
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            charge = serializer.save()
+
+            AuditService.log(
+                actor=self.request.user,
+                lodge=charge.reservation.lodge,
+                action=AuditLog.Action.CREATE,
+                obj=charge,
+                changes={
+                    "reservation_id": {
+                        "from": None,
+                        "to": charge.reservation_id,
+                    },
+                    "service_item_id": {
+                        "from": None,
+                        "to": charge.service_item_id,
+                    },
+                    "category": {
+                        "from": None,
+                        "to": charge.category,
+                    },
+                    "description": {
+                        "from": None,
+                        "to": charge.description,
+                    },
+                    "quantity": {
+                        "from": None,
+                        "to": str(charge.quantity),
+                    },
+                    "unit_price": {
+                        "from": None,
+                        "to": str(charge.unit_price),
+                    },
+                },
+                details={
+                    "total": str(charge.total),
+                },
+            )
 
 
 class PaymentListCreateView(generics.ListCreateAPIView):
@@ -154,8 +197,34 @@ class PaymentListCreateView(generics.ListCreateAPIView):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(recorded_by=self.request.user)
+        with transaction.atomic():
+            payment = serializer.save(
+                recorded_by=self.request.user
+            )
 
+            AuditService.log(
+                actor=self.request.user,
+                lodge=payment.reservation.lodge,
+                action=AuditLog.Action.CREATE,
+                obj=payment,
+                changes={
+                    "amount": {
+                        "from": None,
+                        "to": str(payment.amount),
+                    },
+                    "payment_method": {
+                        "from": None,
+                        "to": payment.payment_method,
+                    },
+                    "reference": {
+                        "from": None,
+                        "to": payment.reference,
+                    },
+                },
+                details={
+                    "reservation_id": payment.reservation_id,
+                },
+            )
 
 
 
@@ -633,7 +702,34 @@ class ExpenseListCreateView(
                 "No active lodge membership found."
             )
 
-        serializer.save(lodge=membership.lodge)
+        with transaction.atomic():
+            expense = serializer.save(
+                lodge=membership.lodge
+            )
+
+            AuditService.log(
+                actor=self.request.user,
+                lodge=expense.lodge,
+                action=AuditLog.Action.CREATE,
+                obj=expense,
+                changes={
+                    "category_id": {
+                        "from": None,
+                        "to": expense.category_id,
+                    },
+                    "date": {
+                        "from": None,
+                        "to": expense.date.isoformat(),
+                    },
+                    "amount": {
+                        "from": None,
+                        "to": str(expense.amount),
+                    },
+                },
+                details={
+                    "category_name": expense.category.name,
+                },
+            )
 
 
 class ExpenseDetailView(
@@ -657,6 +753,83 @@ class ExpenseDetailView(
         return Expense.objects.filter(
             lodge=membership.lodge
         )
+    
+    def perform_update(self, serializer):
+        expense = self.get_object()
+
+        old_values = {
+            "category_id": expense.category_id,
+            "date": expense.date.isoformat(),
+            "amount": str(expense.amount),
+            "description": expense.description,
+        }
+
+        with transaction.atomic():
+            expense = serializer.save()
+
+            changes = {}
+
+            if old_values["category_id"] != expense.category_id:
+                changes["category_id"] = {
+                    "from": old_values["category_id"],
+                    "to": expense.category_id,
+                }
+
+            if old_values["date"] != expense.date.isoformat():
+                changes["date"] = {
+                    "from": old_values["date"],
+                    "to": expense.date.isoformat(),
+                }
+
+            if old_values["amount"] != str(expense.amount):
+                changes["amount"] = {
+                    "from": old_values["amount"],
+                    "to": str(expense.amount),
+                }
+
+            if old_values["description"] != expense.description:
+                changes["description"] = {
+                    "from": old_values["description"],
+                    "to": expense.description,
+                }
+
+            if changes:
+                AuditService.log(
+                    actor=self.request.user,
+                    lodge=expense.lodge,
+                    action=AuditLog.Action.UPDATE,
+                    obj=expense,
+                    changes=changes,
+                    details={
+                        "category_name": expense.category.name,
+                    },
+                )
+                
+                
+    def perform_destroy(self, instance):
+        expense = instance
+
+        changes = {
+            "category_id": expense.category_id,
+            "date": expense.date.isoformat(),
+            "amount": str(expense.amount),
+        }
+
+        details = {
+            "category_name": expense.category.name,
+        }
+
+        with transaction.atomic():
+            AuditService.log(
+                actor=self.request.user,
+                lodge=expense.lodge,
+                action=AuditLog.Action.DELETE,
+                obj=expense,
+                changes=changes,
+                details=details,
+            )
+
+            expense.delete()
 
 
 class FinancialSummaryView(generics.GenericAPIView):
@@ -1021,6 +1194,40 @@ class SalaryPaymentListCreateView(
             )
 
         return queryset
+    
+    
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            salary_payment = serializer.save()
+
+            AuditService.log(
+                actor=self.request.user,
+                lodge=salary_payment.staff.lodge,
+                action=AuditLog.Action.CREATE,
+                obj=salary_payment,
+                changes={
+                    "staff_id": {
+                        "from": None,
+                        "to": salary_payment.staff_id,
+                    },
+                    "amount": {
+                        "from": None,
+                        "to": str(salary_payment.amount),
+                    },
+                    "payment_date": {
+                        "from": None,
+                        "to": salary_payment.payment_date.isoformat(),
+                    },
+                    "salary_month": {
+                        "from": None,
+                        "to": salary_payment.salary_month.isoformat(),
+                    },
+                },
+                details={
+                    "staff_name": salary_payment.staff.name,
+                    "staff_role": salary_payment.staff.role,
+                },
+            )
 
 
 class SalaryPaymentMonthlyView(

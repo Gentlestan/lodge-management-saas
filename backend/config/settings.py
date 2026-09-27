@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "billing",
     "tenants",
     "accounts",
+    "audit",
 ]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -130,6 +131,7 @@ DATABASES = {
             "DB_PORT",
             "5432",
         ),
+       
     }
 }
 
