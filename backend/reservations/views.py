@@ -434,6 +434,146 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+
+        # ------------------------------------------------------------------
+    # MARK NO SHOW
+    # ------------------------------------------------------------------
+
+    @action(detail=True, methods=["patch"])
+    def mark_no_show(self, request, pk=None):
+        reservation = self.get_object()
+        lodge = reservation.lodge
+
+        # --------------------------------------------------------------
+        # RESERVATION TYPE
+        # --------------------------------------------------------------
+
+        if reservation.stay_type != "Overnight":
+            return Response(
+                {
+                    "detail": (
+                        "Only overnight reservations can be marked "
+                        "as No Show."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # --------------------------------------------------------------
+        # STATUS VALIDATION
+        # --------------------------------------------------------------
+
+        if reservation.status != "Reserved":
+            return Response(
+                {
+                    "detail": (
+                        "Only reserved reservations can be marked "
+                        "as No Show."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # --------------------------------------------------------------
+        # DATE VALIDATION
+        # --------------------------------------------------------------
+
+        if reservation.check_in_date >= timezone.localdate():
+            return Response(
+                {
+                    "detail": (
+                        "This reservation is not eligible for No Show "
+                        "yet."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        room = reservation.room
+
+        with transaction.atomic():
+            old_reservation_status = reservation.status
+            old_room_status = room.status
+
+            reservation.status = "No Show"
+            reservation.save(
+                update_fields=["status"]
+            )
+
+            other_active_reservation = (
+                self._room_has_other_active_reservation(
+                    room,
+                    reservation_id=reservation.id,
+                )
+            )
+
+            room_released = False
+
+            if (
+                room.status == "Reserved"
+                and not other_active_reservation
+            ):
+                room.status = "Available"
+
+                room.save(
+                    update_fields=["status"]
+                )
+
+                room_released = True
+
+            # ----------------------------------------------------------
+            # AUDIT: NO SHOW
+            # ----------------------------------------------------------
+
+            AuditService.log(
+                actor=request.user,
+                lodge=lodge,
+                action=AuditLog.Action.NO_SHOW,
+                obj=reservation,
+                changes={
+                    "status": {
+                        "from": old_reservation_status,
+                        "to": reservation.status,
+                    }
+                },
+                details={
+                    "room_id": room.id,
+                    "room_released": room_released,
+                    "reason": "Reservation marked No Show",
+                },
+            )
+
+            # ----------------------------------------------------------
+            # AUDIT: ROOM RELEASE
+            # ----------------------------------------------------------
+
+            if room_released:
+                AuditService.log(
+                    actor=request.user,
+                    lodge=lodge,
+                    action=AuditLog.Action.UPDATE,
+                    obj=room,
+                    changes={
+                        "status": {
+                            "from": old_room_status,
+                            "to": room.status,
+                        }
+                    },
+                    details={
+                        "reason": (
+                            "No Show reservation released room"
+                        ),
+                        "reservation_id": reservation.id,
+                    },
+                )
+
+        serializer = self.get_serializer(reservation)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
+
     # ------------------------------------------------------------------
     # CHECK IN
     # ------------------------------------------------------------------
@@ -477,6 +617,18 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+
+        if reservation.status == "No Show":
+            return Response(
+                {
+                    "detail": (
+                        "A No Show reservation cannot be checked in. "
+                        "Update the reservation or create a new one."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # --------------------------------------------------------------
         # CHECK-IN TIMING
         # --------------------------------------------------------------
@@ -488,6 +640,17 @@ class ReservationViewSet(viewsets.ModelViewSet):
                         "detail": (
                             "This reservation cannot be checked in yet. "
                             "The check-in date has not arrived."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        if reservation.stay_type == "Overnight":
+            if reservation.check_in_date < timezone.localdate():
+                return Response(
+                    {
+                        "detail": (
+                            "This reservation has passed its check-in date. "
+                            "Update the reservation dates before checking in."
                         )
                     },
                     status=status.HTTP_400_BAD_REQUEST,
@@ -1154,6 +1317,16 @@ class ReservationViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            if reservation.status == "No Show":
+                return Response(
+                    {
+                        "detail": (
+                            "A No Show reservation cannot be cancelled."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             with transaction.atomic():
                 old_reservation_status = reservation.status
                 old_room_status = reservation.room.status
@@ -1246,6 +1419,7 @@ class ReservationViewSet(viewsets.ModelViewSet):
         if reservation.status in [
             "Cancelled",
             "Checked Out",
+             "No Show",
         ]:
             return Response(
                 {

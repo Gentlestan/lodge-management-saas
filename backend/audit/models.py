@@ -15,6 +15,7 @@ class AuditLog(models.Model):
         CHECK_IN = "CHECK_IN", "Checked In"
         CHECK_OUT = "CHECK_OUT", "Checked Out"
         CANCEL = "CANCEL", "Cancelled"
+        NO_SHOW = "NO_SHOW", "Marked No Show"
 
         MARK_AVAILABLE = "MARK_AVAILABLE", "Marked Available"
 

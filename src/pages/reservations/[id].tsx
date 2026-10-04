@@ -540,6 +540,55 @@ export default function ReservationDetails() {
                   Edit Reservation
                 </button>
 
+                                {reservation.stay_type === "Overnight" && (
+                  <button
+                    onClick={async () => {
+                      const confirmed = window.confirm(
+                        "Are you sure you want to mark this reservation as No Show?"
+                      );
+
+                      if (!confirmed) return;
+
+                      try {
+                        const response = await apiFetch(
+                          `/api/reservations/${reservation.id}/mark_no_show/`,
+                          {
+                            method: "PATCH",
+                          }
+                        );
+
+                        const data = await response.json();
+
+                        if (!response.ok) {
+                          throw new Error(
+                            data.detail ||
+                              "Failed to mark reservation as No Show"
+                          );
+                        }
+
+                        alert(
+                          "Reservation marked as No Show successfully!"
+                        );
+
+                        fetchReservation();
+                      } catch (error) {
+                        console.error(error);
+
+                        if (error instanceof Error) {
+                          alert(error.message);
+                        } else {
+                          alert(
+                            "Unable to mark reservation as No Show."
+                          );
+                        }
+                      }
+                    }}
+                    className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
+                  >
+                    Mark No Show
+                  </button>
+                )}
+
                 <button
                   onClick={async () => {
                     const confirmed = window.confirm(

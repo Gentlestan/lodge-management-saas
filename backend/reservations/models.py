@@ -38,6 +38,7 @@ class Reservation(models.Model):
         ("Checked In", "Checked In"),
         ("Checked Out", "Checked Out"),
         ("Cancelled", "Cancelled"),
+        ("No Show", "No Show"),
     ]
 
     STAY_TYPE_CHOICES = [
