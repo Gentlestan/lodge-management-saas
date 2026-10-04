@@ -804,7 +804,7 @@ class ReservationViewSet(viewsets.ModelViewSet):
 
             nights = (
                 actual_checkout_date
-                - reservation.check_in_date
+                - reservation.checked_in_at.date()
             ).days
 
             # Same-day checkout = one night.
