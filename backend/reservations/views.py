@@ -1,21 +1,31 @@
 from django.db import transaction
 from django.utils import timezone
 
-from rest_framework import serializers, status, viewsets
+from rest_framework import generics, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from tenants.permissions import IsLodgeMember
+from tenants.permissions import (
+    IsLodgeMember,
+    IsServiceItemManagerOrOwner,
+)
 from tenants.utils import get_current_lodge
 from billing.models import Charge
 from tenants.models import Membership
-
 from audit.models import AuditLog
 from audit.services import AuditService
 
-from .models import Reservation
-from .serializers import ReservationSerializer
+
+from .models import Reservation, ShortRestPackage
+from .serializers import (
+    ReservationSerializer,
+    ShortRestPackageSerializer,
+)
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ReservationViewSet(viewsets.ModelViewSet):
@@ -35,6 +45,47 @@ class ReservationViewSet(viewsets.ModelViewSet):
         return Reservation.objects.filter(
             lodge=lodge
         ).order_by("-created_at")
+
+    # ------------------------------------------------------------------
+    # ROOM AVAILABILITY HELPER
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _room_has_other_active_reservation(
+        room,
+        reservation_id=None,
+    ):
+        """
+        Determine whether a room still has another reservation that
+        should keep the room from being marked Available.
+
+        This intentionally considers only reservations that are still
+        operationally relevant.
+
+        Checked In:
+            The room is currently occupied.
+
+        Reserved:
+            The room has a future/current reservation.
+
+        Cancelled and Checked Out reservations do not keep the room
+        reserved.
+        """
+
+        queryset = Reservation.objects.filter(
+            room=room,
+            status__in=[
+                "Reserved",
+                "Checked In",
+            ],
+        )
+
+        if reservation_id is not None:
+            queryset = queryset.exclude(
+                id=reservation_id
+            )
+
+        return queryset.exists()
 
     # ------------------------------------------------------------------
     # AUDIT HELPERS
@@ -57,6 +108,20 @@ class ReservationViewSet(viewsets.ModelViewSet):
             "room_rate": (
                 str(reservation.room_rate)
                 if reservation.room_rate is not None
+                else None
+            ),
+            "stay_type": reservation.stay_type,
+            "short_rest_package_id": (
+                reservation.short_rest_package_id
+            ),
+            "short_rest_start": (
+                reservation.short_rest_start.isoformat()
+                if reservation.short_rest_start
+                else None
+            ),
+            "short_rest_end": (
+                reservation.short_rest_end.isoformat()
+                if reservation.short_rest_end
                 else None
             ),
             "check_in_date": (
@@ -98,6 +163,12 @@ class ReservationViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """
         Create a reservation and automatically mark the room as Reserved.
+
+        Overnight:
+            room_rate = room.price_per_night
+
+        Short Rest:
+            room_rate = selected short-rest package price
         """
 
         guest_id = request.data.get("guest")
@@ -105,7 +176,9 @@ class ReservationViewSet(viewsets.ModelViewSet):
 
         if not guest_id or not room_id:
             return Response(
-                {"detail": "Guest and room are required."},
+                {
+                    "detail": "Guest and room are required."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -149,6 +222,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 room = serializer.validated_data["room"]
                 guest = serializer.validated_data["guest"]
 
+                # ------------------------------------------------------
+                # GUEST VALIDATION
+                # ------------------------------------------------------
+
                 if not guest.active:
                     return Response(
                         {
@@ -160,6 +237,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
+                # ------------------------------------------------------
+                # ROOM VALIDATION
+                # ------------------------------------------------------
+
                 if not room.active:
                     return Response(
                         {
@@ -170,8 +251,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
-                # Only maintenance blocks future reservations.
-                # Occupied and Cleaning are handled by date-overlap validation.
+                # Maintenance blocks new reservations.
+                # Occupied/Cleaning are handled through reservation
+                # overlap validation.
+
                 if room.status == "Maintenance":
                     return Response(
                         {
@@ -183,6 +266,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
+                # ------------------------------------------------------
+                # DATE VALIDATION
+                # ------------------------------------------------------
+
                 check_in_date = serializer.validated_data[
                     "check_in_date"
                 ]
@@ -191,21 +278,34 @@ class ReservationViewSet(viewsets.ModelViewSet):
                     "check_out_date"
                 ]
 
-                if check_out_date <= check_in_date:
-                    return Response(
-                        {
-                            "detail": (
-                                "Check-out date must be after check-in date."
-                            )
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                stay_type = serializer.validated_data[
+                    "stay_type"
+                ]
+
+                if stay_type != "Short Rest":
+                    if check_out_date <= check_in_date:
+                        return Response(
+                            {
+                                "detail": (
+                                    "Check-out date must be after "
+                                    "check-in date."
+                                )
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                # ------------------------------------------------------
+                # OCCUPANCY VALIDATION
+                # ------------------------------------------------------
 
                 number_of_guests = serializer.validated_data[
                     "number_of_guests"
                 ]
 
-                if number_of_guests > room.maximum_occupancy:
+                if (
+                    room.maximum_occupancy is not None
+                    and number_of_guests > room.maximum_occupancy
+                ):
                     return Response(
                         {
                             "detail": (
@@ -216,15 +316,47 @@ class ReservationViewSet(viewsets.ModelViewSet):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
+                # ------------------------------------------------------
+                # DETERMINE ACCOMMODATION PRICE
+                # ------------------------------------------------------
+
+                if stay_type == "Short Rest":
+                    short_rest_package = (
+                        serializer.validated_data.get(
+                            "short_rest_package"
+                        )
+                    )
+
+                    if short_rest_package is None:
+                        return Response(
+                            {
+                                "detail": (
+                                    "A short-rest package is required."
+                                )
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                    # Short Rest uses the fixed package price.
+                    room_rate = short_rest_package.price
+
+                else:
+                    # Overnight uses the room's nightly rate.
+                    room_rate = room.price_per_night
+
+                # ------------------------------------------------------
+                # SAVE RESERVATION
+                # ------------------------------------------------------
+
                 reservation = serializer.save(
                     lodge=lodge,
-                    room_rate=room.price_per_night,
+                    room_rate=room_rate,
                 )
 
                 # Capture the actual previous room state.
                 old_room_status = room.status
 
-                # New reservation occupies the room for future booking.
+                # New reservation reserves the room.
                 room.status = "Reserved"
 
                 room.save(
@@ -235,53 +367,24 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 # AUDIT: RESERVATION CREATED
                 # ------------------------------------------------------
 
+                reservation_values = self._reservation_values(
+                    reservation
+                )
+
+                creation_changes = {
+                    field: {
+                        "from": None,
+                        "to": value,
+                    }
+                    for field, value in reservation_values.items()
+                }
+
                 AuditService.log(
                     actor=request.user,
                     lodge=lodge,
                     action=AuditLog.Action.CREATE,
                     obj=reservation,
-                    changes={
-                        "status": {
-                            "from": None,
-                            "to": reservation.status,
-                        },
-                        "guest_id": {
-                            "from": None,
-                            "to": reservation.guest_id,
-                        },
-                        "room_id": {
-                            "from": None,
-                            "to": reservation.room_id,
-                        },
-                        "room_rate": {
-                            "from": None,
-                            "to": (
-                                str(reservation.room_rate)
-                                if reservation.room_rate is not None
-                                else None
-                            ),
-                        },
-                        "check_in_date": {
-                            "from": None,
-                            "to": (
-                                reservation.check_in_date.isoformat()
-                                if reservation.check_in_date
-                                else None
-                            ),
-                        },
-                        "check_out_date": {
-                            "from": None,
-                            "to": (
-                                reservation.check_out_date.isoformat()
-                                if reservation.check_out_date
-                                else None
-                            ),
-                        },
-                        "number_of_guests": {
-                            "from": None,
-                            "to": reservation.number_of_guests,
-                        },
-                    },
+                    changes=creation_changes,
                 )
 
                 # ------------------------------------------------------
@@ -321,12 +424,14 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        except Exception as error:
-            print("Reservation creation error:", error)
+        except Exception:
+            logger.exception("Reservation creation error")
 
             return Response(
-                {"detail": "Unable to create reservation."},
-                status=status.HTTP_400_BAD_REQUEST,
+                {
+                    "detail": "Unable to create reservation."
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
     # ------------------------------------------------------------------
@@ -338,7 +443,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
         reservation = self.get_object()
         lodge = reservation.lodge
 
-        # Reservation must be active.
+        # --------------------------------------------------------------
+        # RESERVATION STATUS VALIDATION
+        # --------------------------------------------------------------
+
         if reservation.status == "Cancelled":
             return Response(
                 {
@@ -369,19 +477,67 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Check-in date must have arrived.
-        if reservation.check_in_date > timezone.localdate():
-            return Response(
-                {
-                    "detail": (
-                        "This reservation cannot be checked in yet. "
-                        "The check-in date has not arrived."
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        # --------------------------------------------------------------
+        # CHECK-IN TIMING
+        # --------------------------------------------------------------
 
-        # Guest must still be active.
+        if reservation.stay_type == "Overnight":
+            if reservation.check_in_date > timezone.localdate():
+                return Response(
+                    {
+                        "detail": (
+                            "This reservation cannot be checked in yet. "
+                            "The check-in date has not arrived."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        elif reservation.stay_type == "Short Rest":
+            now = timezone.now()
+
+            if (
+                not reservation.short_rest_start
+                or not reservation.short_rest_end
+            ):
+                return Response(
+                    {
+                        "detail": (
+                            "This short-rest reservation has no valid "
+                            "booking time."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Cannot check in before booked start time.
+            if now < reservation.short_rest_start:
+                return Response(
+                    {
+                        "detail": (
+                            "This short-rest reservation cannot be checked "
+                            "in yet. The booking time has not arrived."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Cannot check in after the package period has ended.
+            if now >= reservation.short_rest_end:
+                return Response(
+                    {
+                        "detail": (
+                            "The scheduled short-rest period has already "
+                            "ended and cannot be checked in."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # --------------------------------------------------------------
+        # GUEST VALIDATION
+        # --------------------------------------------------------------
+
         if not reservation.guest.active:
             return Response(
                 {
@@ -392,7 +548,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Room must be active.
+        # --------------------------------------------------------------
+        # ROOM VALIDATION
+        # --------------------------------------------------------------
+
         if not reservation.room.active:
             return Response(
                 {
@@ -403,7 +562,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Reservation must have a room rate.
+        # --------------------------------------------------------------
+        # ROOM RATE VALIDATION
+        # --------------------------------------------------------------
+
         if reservation.room_rate is None:
             return Response(
                 {
@@ -415,33 +577,50 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Calculate number of nights.
-        nights = (
-            reservation.check_out_date
-            - reservation.check_in_date
-        ).days
+        # --------------------------------------------------------------
+        # ACCOMMODATION QUANTITY
+        # --------------------------------------------------------------
 
-        if nights <= 0:
-            return Response(
-                {
-                    "detail": (
-                        "Reservation must have at least one night."
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        if reservation.stay_type == "Overnight":
+            nights = (
+                reservation.check_out_date
+                - reservation.check_in_date
+            ).days
+
+            if nights <= 0:
+                return Response(
+                    {
+                        "detail": (
+                            "Reservation must have at least one night."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            accommodation_quantity = nights
+
+        else:
+            # Short Rest is one fixed package unit.
+            nights = None
+            accommodation_quantity = 1
+
+        # --------------------------------------------------------------
+        # COMPLETE CHECK-IN
+        # --------------------------------------------------------------
 
         with transaction.atomic():
             old_reservation_status = reservation.status
             old_room_status = reservation.room.status
 
-            # Update reservation.
             reservation.status = "Checked In"
             reservation.checked_in_at = timezone.now()
 
             reservation.save()
 
-            # Prevent duplicate accommodation charge.
+            # ----------------------------------------------------------
+            # ACCOMMODATION CHARGE
+            # ----------------------------------------------------------
+
             accommodation_charge = Charge.objects.filter(
                 reservation=reservation,
                 category="Accommodation",
@@ -456,13 +635,16 @@ class ReservationViewSet(viewsets.ModelViewSet):
                     description=(
                         f"Room {reservation.room.room_name}"
                     ),
-                    quantity=nights,
+                    quantity=accommodation_quantity,
                     unit_price=reservation.room_rate,
                 )
 
                 accommodation_created = True
 
-            # Update room.
+            # ----------------------------------------------------------
+            # UPDATE ROOM
+            # ----------------------------------------------------------
+
             reservation.room.status = "Occupied"
 
             reservation.room.save(
@@ -472,6 +654,20 @@ class ReservationViewSet(viewsets.ModelViewSet):
             # ----------------------------------------------------------
             # AUDIT: CHECK-IN
             # ----------------------------------------------------------
+
+            check_in_details = {
+                "room_id": reservation.room_id,
+                "guest_id": reservation.guest_id,
+                "stay_type": reservation.stay_type,
+                "accommodation_quantity": accommodation_quantity,
+            }
+
+            if reservation.stay_type == "Overnight":
+                check_in_details["nights"] = nights
+            else:
+                check_in_details["short_rest_package_id"] = (
+                    reservation.short_rest_package_id
+                )
 
             AuditService.log(
                 actor=request.user,
@@ -492,11 +688,7 @@ class ReservationViewSet(viewsets.ModelViewSet):
                         ),
                     },
                 },
-                details={
-                    "room_id": reservation.room_id,
-                    "guest_id": reservation.guest_id,
-                    "nights": nights,
-                },
+                details=check_in_details,
             )
 
             # ----------------------------------------------------------
@@ -523,7 +715,6 @@ class ReservationViewSet(viewsets.ModelViewSet):
 
             # ----------------------------------------------------------
             # AUDIT: ACCOMMODATION CHARGE
-            # Only when actually created.
             # ----------------------------------------------------------
 
             if accommodation_created:
@@ -574,7 +765,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
         reservation = self.get_object()
         lodge = reservation.lodge
 
-        # Must already be checked in.
+        # --------------------------------------------------------------
+        # STATUS VALIDATION
+        # --------------------------------------------------------------
+
         if reservation.status != "Checked In":
             return Response(
                 {
@@ -584,8 +778,6 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        actual_checkout_date = timezone.localdate()
 
         accommodation_charge = Charge.objects.filter(
             reservation=reservation,
@@ -604,25 +796,37 @@ class ReservationViewSet(viewsets.ModelViewSet):
             )
 
         # --------------------------------------------------------------
-        # Calculate final accommodation charge WITHOUT mutating it.
+        # FINAL ACCOMMODATION QUANTITY
         # --------------------------------------------------------------
 
-        nights = (
-            actual_checkout_date
-            - reservation.check_in_date
-        ).days
+        if reservation.stay_type == "Overnight":
+            actual_checkout_date = timezone.localdate()
 
-        # Same-day check-in/check-out is charged as 1 night.
-        nights = max(1, nights)
+            nights = (
+                actual_checkout_date
+                - reservation.check_in_date
+            ).days
+
+            # Same-day checkout = one night.
+            nights = max(1, nights)
+
+            accommodation_quantity = nights
+
+        else:
+            # Short Rest is always one package unit.
+            actual_checkout_date = timezone.localdate()
+            nights = None
+            accommodation_quantity = 1
 
         # --------------------------------------------------------------
-        # Calculate prospective current bill.
+        # CALCULATE CURRENT BILL
         # --------------------------------------------------------------
 
         total_charges = sum(
             (
                 (
-                    nights * reservation.room_rate
+                    accommodation_quantity
+                    * reservation.room_rate
                     if charge.pk == accommodation_charge.pk
                     else charge.quantity * charge.unit_price
                 )
@@ -632,6 +836,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
             ),
             0,
         )
+
+        # --------------------------------------------------------------
+        # TOTAL PAID
+        # --------------------------------------------------------------
 
         total_paid = sum(
             (
@@ -644,7 +852,7 @@ class ReservationViewSet(viewsets.ModelViewSet):
         balance = total_charges - total_paid
 
         # --------------------------------------------------------------
-        # Block checkout if money is still owed.
+        # OUTSTANDING BALANCE
         # --------------------------------------------------------------
 
         if balance > 0:
@@ -663,7 +871,7 @@ class ReservationViewSet(viewsets.ModelViewSet):
             )
 
         # --------------------------------------------------------------
-        # Complete checkout atomically.
+        # COMPLETE CHECKOUT
         # --------------------------------------------------------------
 
         with transaction.atomic():
@@ -674,7 +882,7 @@ class ReservationViewSet(viewsets.ModelViewSet):
             old_charge_quantity = accommodation_charge.quantity
             old_charge_unit_price = accommodation_charge.unit_price
 
-            new_charge_quantity = nights
+            new_charge_quantity = accommodation_quantity
             new_charge_unit_price = reservation.room_rate
 
             charge_changed = (
@@ -683,7 +891,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 != new_charge_unit_price
             )
 
-            # Update accommodation charge.
+            # ----------------------------------------------------------
+            # UPDATE ACCOMMODATION CHARGE
+            # ----------------------------------------------------------
+
             accommodation_charge.quantity = new_charge_quantity
             accommodation_charge.unit_price = (
                 new_charge_unit_price
@@ -696,16 +907,28 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 ]
             )
 
-            # Complete checkout.
+            # ----------------------------------------------------------
+            # COMPLETE RESERVATION CHECKOUT
+            # ----------------------------------------------------------
+
             reservation.status = "Checked Out"
             reservation.checked_out_at = timezone.now()
 
-            # Save actual departure date.
-            reservation.check_out_date = actual_checkout_date
+            # Only Overnight updates check_out_date.
+            #
+            # Short Rest keeps its original scheduled date/time.
+
+            if reservation.stay_type == "Overnight":
+                reservation.check_out_date = (
+                    actual_checkout_date
+                )
 
             reservation.save()
 
-            # Send room for cleaning.
+            # ----------------------------------------------------------
+            # SEND ROOM TO CLEANING
+            # ----------------------------------------------------------
+
             reservation.room.status = "Cleaning"
 
             reservation.room.save(
@@ -716,40 +939,68 @@ class ReservationViewSet(viewsets.ModelViewSet):
             # AUDIT: CHECKOUT
             # ----------------------------------------------------------
 
+            checkout_changes = {
+                "status": {
+                    "from": old_reservation_status,
+                    "to": reservation.status,
+                },
+                "checked_out_at": {
+                    "from": None,
+                    "to": (
+                        reservation.checked_out_at.isoformat()
+                        if reservation.checked_out_at
+                        else None
+                    ),
+                },
+            }
+
+            if reservation.stay_type == "Overnight":
+                checkout_changes["check_out_date"] = {
+                    "from": (
+                        old_check_out_date.isoformat()
+                        if old_check_out_date
+                        else None
+                    ),
+                    "to": actual_checkout_date.isoformat(),
+                }
+
+            checkout_details = {
+                "room_id": reservation.room_id,
+                "stay_type": reservation.stay_type,
+                "total_charges": str(total_charges),
+                "total_paid": str(total_paid),
+                "balance": str(balance),
+            }
+
+            if reservation.stay_type == "Overnight":
+                checkout_details["actual_nights"] = nights
+
+            else:
+                checkout_details["accommodation_units"] = 1
+
+                checkout_details["short_rest_package_id"] = (
+                    reservation.short_rest_package_id
+                )
+
+                checkout_details["short_rest_start"] = (
+                    reservation.short_rest_start.isoformat()
+                    if reservation.short_rest_start
+                    else None
+                )
+
+                checkout_details["short_rest_end"] = (
+                    reservation.short_rest_end.isoformat()
+                    if reservation.short_rest_end
+                    else None
+                )
+
             AuditService.log(
                 actor=request.user,
                 lodge=lodge,
                 action=AuditLog.Action.CHECK_OUT,
                 obj=reservation,
-                changes={
-                    "status": {
-                        "from": old_reservation_status,
-                        "to": reservation.status,
-                    },
-                    "check_out_date": {
-                        "from": (
-                            old_check_out_date.isoformat()
-                            if old_check_out_date
-                            else None
-                        ),
-                        "to": actual_checkout_date.isoformat(),
-                    },
-                    "checked_out_at": {
-                        "from": None,
-                        "to": (
-                            reservation.checked_out_at.isoformat()
-                            if reservation.checked_out_at
-                            else None
-                        ),
-                    },
-                },
-                details={
-                    "room_id": reservation.room_id,
-                    "actual_nights": nights,
-                    "total_charges": str(total_charges),
-                    "total_paid": str(total_paid),
-                    "balance": str(balance),
-                },
+                changes=checkout_changes,
+                details=checkout_details,
             )
 
             # ----------------------------------------------------------
@@ -776,7 +1027,6 @@ class ReservationViewSet(viewsets.ModelViewSet):
 
             # ----------------------------------------------------------
             # AUDIT: ACCOMMODATION CHARGE
-            # Only if quantity/unit price actually changed.
             # ----------------------------------------------------------
 
             if charge_changed:
@@ -821,7 +1071,7 @@ class ReservationViewSet(viewsets.ModelViewSet):
         )
 
     # ------------------------------------------------------------------
-    # UPDATE / PATCH
+    # UPDATE / PUT
     # ------------------------------------------------------------------
 
     def update(self, request, *args, **kwargs):
@@ -837,6 +1087,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
             **kwargs,
         )
 
+    # ------------------------------------------------------------------
+    # UPDATE / PATCH
+    # ------------------------------------------------------------------
+
     def partial_update(self, request, *args, **kwargs):
         """
         Handle reservation edits and cancellation.
@@ -849,6 +1103,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
             **kwargs,
         )
 
+    # ------------------------------------------------------------------
+    # SHARED UPDATE LOGIC
+    # ------------------------------------------------------------------
+
     def _update_reservation(
         self,
         request,
@@ -858,7 +1116,6 @@ class ReservationViewSet(viewsets.ModelViewSet):
     ):
         reservation = self.get_object()
         lodge = reservation.lodge
-
         new_status = request.data.get("status")
 
         # --------------------------------------------------------------
@@ -907,20 +1164,21 @@ class ReservationViewSet(viewsets.ModelViewSet):
                     update_fields=["status"]
                 )
 
-                # Only release the room if there are no other
-                # active reservations for this room.
-                other_reserved = Reservation.objects.filter(
-                    room=reservation.room,
-                    status="Reserved",
-                ).exclude(
-                    id=reservation.id
-                ).exists()
+                # Determine whether another active reservation
+                # still needs this room.
+
+                other_active_reservation = (
+                    self._room_has_other_active_reservation(
+                        reservation.room,
+                        reservation.id,
+                    )
+                )
 
                 room_released = False
 
                 if (
                     reservation.room.status == "Reserved"
-                    and not other_reserved
+                    and not other_active_reservation
                 ):
                     reservation.room.status = "Available"
 
@@ -1003,9 +1261,81 @@ class ReservationViewSet(viewsets.ModelViewSet):
         # --------------------------------------------------------------
 
         if reservation.status == "Checked In":
-            # Room cannot be changed during an active stay.
+
+            # ----------------------------------------------------------
+            # STAY TYPE CANNOT CHANGE
+            # ----------------------------------------------------------
+
+            if "stay_type" in request.data:
+                new_stay_type = request.data.get(
+                    "stay_type"
+                )
+
+                if new_stay_type != reservation.stay_type:
+                    return Response(
+                        {
+                            "detail": (
+                                "The stay type cannot be changed "
+                                "after the guest has checked in."
+                            )
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            # ----------------------------------------------------------
+            # SHORT REST PACKAGE CANNOT CHANGE
+            # ----------------------------------------------------------
+
+            if "short_rest_package" in request.data:
+                new_package_id = request.data.get(
+                    "short_rest_package"
+                )
+
+                if (
+                    str(new_package_id)
+                    != str(reservation.short_rest_package_id)
+                ):
+                    return Response(
+                        {
+                            "detail": (
+                                "The short-rest package cannot be changed "
+                                "after the guest has checked in."
+                            )
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            if reservation.stay_type == "Short Rest":
+                if "short_rest_start" in request.data:
+                    return Response(
+                        {
+                            "detail": (
+                                "The short-rest booking time cannot be "
+                                "changed after the guest has checked in."
+                            )
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                if "short_rest_end" in request.data:
+                    return Response(
+                        {
+                            "detail": (
+                                "The short-rest booking time cannot be "
+                                "changed after the guest has checked in."
+                            )
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            # ----------------------------------------------------------
+            # ROOM CANNOT CHANGE
+            # ----------------------------------------------------------
+
             if "room" in request.data:
-                new_room_id = request.data.get("room")
+                new_room_id = request.data.get(
+                    "room"
+                )
 
                 if str(new_room_id) != str(reservation.room_id):
                     return Response(
@@ -1018,7 +1348,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
-            # Check-in date cannot be changed during an active stay.
+            # ----------------------------------------------------------
+            # CHECK-IN DATE CANNOT CHANGE
+            # ----------------------------------------------------------
+
             if "check_in_date" in request.data:
                 if (
                     request.data.get("check_in_date")
@@ -1040,13 +1373,21 @@ class ReservationViewSet(viewsets.ModelViewSet):
 
         try:
             with transaction.atomic():
-                # Capture old state before any changes.
+
+                # ------------------------------------------------------
+                # CAPTURE OLD STATE
+                # ------------------------------------------------------
+
                 old_values = self._reservation_values(
                     reservation
                 )
 
                 old_room = reservation.room
                 old_room_status = old_room.status
+
+                # ------------------------------------------------------
+                # SERIALIZER VALIDATION
+                # ------------------------------------------------------
 
                 serializer = self.get_serializer(
                     reservation,
@@ -1059,6 +1400,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 )
 
                 validated_data = serializer.validated_data
+
+                # ------------------------------------------------------
+                # DETERMINE NEW VALUES
+                # ------------------------------------------------------
 
                 new_room = validated_data.get(
                     "room",
@@ -1075,15 +1420,49 @@ class ReservationViewSet(viewsets.ModelViewSet):
                     reservation.check_out_date,
                 )
 
+                new_stay_type = validated_data.get(
+                    "stay_type",
+                    reservation.stay_type,
+                )
+
+                new_short_rest_package = validated_data.get(
+                    "short_rest_package",
+                    reservation.short_rest_package,
+                )
+
                 room_changed = (
                     new_room.id != old_room.id
                 )
 
                 # ------------------------------------------------------
+                # DETERMINE NEW ROOM RATE
+                # ------------------------------------------------------
+
+                if new_stay_type == "Short Rest":
+                    if new_short_rest_package is None:
+                        return Response(
+                            {
+                                "detail": (
+                                    "A short-rest package is required."
+                                )
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                    new_room_rate = (
+                        new_short_rest_package.price
+                    )
+
+                else:
+                    new_room_rate = (
+                        new_room.price_per_night
+                    )
+
+                # ------------------------------------------------------
                 # ROOM CHANGE VALIDATION
                 # ------------------------------------------------------
 
-                old_new_room_status = None
+                new_room_old_status = None
 
                 if room_changed:
                     if reservation.status != "Reserved":
@@ -1119,58 +1498,78 @@ class ReservationViewSet(viewsets.ModelViewSet):
                             status=status.HTTP_400_BAD_REQUEST,
                         )
 
-                    # Capture the actual destination room status
-                    # before changing it.
-                    old_new_room_status = new_room.status
-
-                    reservation.room_rate = (
-                        new_room.price_per_night
-                    )
+                    new_room_old_status = new_room.status
 
                 # ------------------------------------------------------
-                # VALIDATE NIGHTS BEFORE serializer.save()
+                # VALIDATE ACTIVE-STAY BILLING
                 # ------------------------------------------------------
 
                 nights = None
+                accommodation_quantity = None
 
                 if reservation.status == "Checked In":
-                    nights = (
-                        new_check_out
-                        - new_check_in
-                    ).days
 
-                    if nights <= 0:
-                        return Response(
-                            {
-                                "detail": (
-                                    "Reservation must have "
-                                    "at least one night."
-                                )
-                            },
-                            status=status.HTTP_400_BAD_REQUEST,
-                        )
+                    # IMPORTANT:
+                    #
+                    # Use the existing reservation.stay_type here.
+                    #
+                    # Checked-in stay type changes have already been
+                    # explicitly blocked above.
+
+                    if reservation.stay_type == "Overnight":
+                        nights = (
+                            new_check_out
+                            - new_check_in
+                        ).days
+
+                        if nights <= 0:
+                            return Response(
+                                {
+                                    "detail": (
+                                        "Reservation must have "
+                                        "at least one night."
+                                    )
+                                },
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
+
+                        accommodation_quantity = nights
+
+                    else:
+                        accommodation_quantity = 1
 
                 # ------------------------------------------------------
                 # SAVE RESERVATION
                 # ------------------------------------------------------
 
                 reservation = serializer.save(
-                    room_rate=reservation.room_rate
+                    room_rate=new_room_rate
                 )
 
                 # ------------------------------------------------------
-                # ROOM STATUS WHEN FUTURE RESERVATION CHANGES ROOM
+                # ROOM STATUS WHEN RESERVED ROOM CHANGES
                 # ------------------------------------------------------
 
                 if (
                     reservation.status == "Reserved"
                     and room_changed
                 ):
-                    old_room.status = "Available"
+                    # Before releasing the old room, check whether
+                    # another active reservation still needs it.
 
-                    old_room.save(
-                        update_fields=["status"]
+                    old_room_has_other_active_reservation = (
+                        self._room_has_other_active_reservation(
+                            old_room,
+                            reservation.id,
+                        )
                     )
+
+                    if not old_room_has_other_active_reservation:
+                        old_room.status = "Available"
+
+                        old_room.save(
+                            update_fields=["status"]
+                        )
 
                     new_room.status = "Reserved"
 
@@ -1179,15 +1578,13 @@ class ReservationViewSet(viewsets.ModelViewSet):
                     )
 
                 # ------------------------------------------------------
-                # UPDATE ACCOMMODATION CHARGE AFTER EDIT
+                # UPDATE ACCOMMODATION CHARGE
                 # ------------------------------------------------------
 
                 accommodation_charge = None
                 old_charge_quantity = None
                 old_charge_unit_price = None
-
                 charge_changed = False
-
                 new_charge_quantity = None
                 new_charge_unit_price = None
 
@@ -1206,7 +1603,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
                             accommodation_charge.unit_price
                         )
 
-                        new_charge_quantity = nights
+                        new_charge_quantity = (
+                            accommodation_quantity
+                        )
+
                         new_charge_unit_price = (
                             reservation.room_rate
                         )
@@ -1261,49 +1661,48 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 # ------------------------------------------------------
 
                 if room_changed:
-                    AuditService.log(
-                        actor=request.user,
-                        lodge=lodge,
-                        action=AuditLog.Action.UPDATE,
-                        obj=old_room,
-                        changes={
-                            "status": {
-                                "from": old_room_status,
-                                "to": old_room.status,
-                            }
-                        },
-                        details={
-                            "reason": (
-                                "Reservation room changed"
-                            ),
-                            "reservation_id": reservation.id,
-                            "direction": "released",
-                        },
-                    )
+                    old_room_new_status = old_room.status
 
-                    AuditService.log(
-                        actor=request.user,
-                        lodge=lodge,
-                        action=AuditLog.Action.UPDATE,
-                        obj=new_room,
-                        changes={
-                            "status": {
-                                "from": old_new_room_status,
-                                "to": new_room.status,
-                            }
-                        },
-                        details={
-                            "reason": (
-                                "Reservation room changed"
-                            ),
-                            "reservation_id": reservation.id,
-                            "direction": "reserved",
-                        },
-                    )
+                    if old_room_status != old_room_new_status:
+                        AuditService.log(
+                            actor=request.user,
+                            lodge=lodge,
+                            action=AuditLog.Action.UPDATE,
+                            obj=old_room,
+                            changes={
+                                "status": {
+                                    "from": old_room_status,
+                                    "to": old_room_new_status,
+                                }
+                            },
+                            details={
+                                "reason": "Reservation room changed",
+                                "reservation_id": reservation.id,
+                                "direction": "released",
+                            },
+                        )
+
+                    if new_room_old_status != new_room.status:
+                        AuditService.log(
+                            actor=request.user,
+                            lodge=lodge,
+                            action=AuditLog.Action.UPDATE,
+                            obj=new_room,
+                            changes={
+                                "status": {
+                                    "from": new_room_old_status,
+                                    "to": new_room.status,
+                                }
+                            },
+                            details={
+                                "reason": "Reservation room changed",
+                                "reservation_id": reservation.id,
+                                "direction": "reserved",
+                            },
+                        )
 
                 # ------------------------------------------------------
                 # AUDIT: ACCOMMODATION CHARGE
-                # Only when the charge actually changed.
                 # ------------------------------------------------------
 
                 if (
@@ -1357,16 +1756,14 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        except Exception as error:
-            print("Reservation update error:", error)
+        except Exception:
+            logger.exception("Reservation update error")
 
             return Response(
                 {
-                    "detail": (
-                        "Unable to update reservation."
-                    )
+                    "detail": "Unable to update reservation."
                 },
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
     # ------------------------------------------------------------------
@@ -1375,33 +1772,145 @@ class ReservationViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         """
-        Audit the reservation before deleting it.
-        The audit and deletion occur in the same transaction.
+        Reservations should not be physically deleted through the
+        normal API.
+
+        Use cancellation instead so that reservation, billing,
+        payment, and operational history remain intact.
         """
 
-        reservation = self.get_object()
-        lodge = reservation.lodge
-
-        old_values = self._reservation_values(
-            reservation
+        return Response(
+            {
+                "detail": (
+                    "Reservations cannot be deleted. "
+                    "Cancel the reservation instead."
+                )
+            },
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
-        object_repr = str(reservation)
+class ShortRestPackageListView(
+    generics.ListCreateAPIView
+):
+    serializer_class = ShortRestPackageSerializer
+    permission_classes = [
+        IsAuthenticated,
+        IsServiceItemManagerOrOwner,
+    ]
+
+    def get_queryset(self):
+        lodge = get_current_lodge(
+            self.request.user
+        )
+
+        queryset = (
+            ShortRestPackage.objects
+            .filter(lodge=lodge)
+            .order_by("duration_hours")
+        )
+
+        active = self.request.query_params.get(
+            "active"
+        )
+
+        if active is not None:
+            queryset = queryset.filter(
+                active=active.lower() == "true"
+            )
+
+        return queryset
+
+    def perform_create(self, serializer):
+        lodge = get_current_lodge(
+            self.request.user
+        )
 
         with transaction.atomic():
+            package = serializer.save(
+                lodge=lodge
+            )
+
             AuditService.log(
-                actor=request.user,
+                actor=self.request.user,
                 lodge=lodge,
-                action=AuditLog.Action.DELETE,
-                obj=reservation,
-                changes=old_values,
-                details={
-                    "object_repr": object_repr,
+                action=AuditLog.Action.CREATE,
+                obj=package,
+                changes={
+                    "name": {
+                        "from": None,
+                        "to": package.name,
+                    },
+                    "duration_hours": {
+                        "from": None,
+                        "to": package.duration_hours,
+                    },
+                    "price": {
+                        "from": None,
+                        "to": str(package.price),
+                    },
+                    "active": {
+                        "from": None,
+                        "to": package.active,
+                    },
                 },
             )
 
-            reservation.delete()
 
-        return Response(
-            status=status.HTTP_204_NO_CONTENT
+class ShortRestPackageDetailView(
+    generics.RetrieveUpdateAPIView
+):
+    serializer_class = ShortRestPackageSerializer
+    permission_classes = [
+        IsAuthenticated,
+        IsServiceItemManagerOrOwner,
+    ]
+
+    def get_queryset(self):
+        lodge = get_current_lodge(
+            self.request.user
         )
+
+        return ShortRestPackage.objects.filter(
+            lodge=lodge
+        )
+
+    def perform_update(self, serializer):
+        package = self.get_object()
+        lodge = package.lodge
+
+        old_values = {
+            "name": package.name,
+            "duration_hours": package.duration_hours,
+            "price": str(package.price),
+            "active": package.active,
+        }
+
+        with transaction.atomic():
+            package = serializer.save()
+
+            new_values = {
+                "name": package.name,
+                "duration_hours": package.duration_hours,
+                "price": str(package.price),
+                "active": package.active,
+            }
+
+            changes = {}
+
+            for field, old_value in old_values.items():
+                new_value = new_values[field]
+
+                if old_value != new_value:
+                    changes[field] = {
+                        "from": old_value,
+                        "to": new_value,
+                    }
+
+            if changes:
+                AuditService.log(
+                    actor=self.request.user,
+                    lodge=lodge,
+                    action=AuditLog.Action.UPDATE,
+                    obj=package,
+                    changes=changes,
+                )

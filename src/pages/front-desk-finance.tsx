@@ -1,17 +1,34 @@
 import { useEffect, useState } from "react";
+
 import { apiFetch, getAuth } from "@/lib/auth";
+
 import { useRouter } from "next/router";
 
-type Payment = {
+type GuestPayment = {
   id: number;
-  reservation: number;
+  reservation_id: number | null;
   guest_name: string;
   room_name: string;
-  amount: string;
+  amount: string | number;
   payment_method: string;
   reference: string;
   notes: string;
   recorded_by: string;
+  created_at: string;
+};
+
+type WalkInFoodDrinksOrder = {
+  id: number;
+  order_id: number | null;
+  customer_name: string;
+  order_total: string | number;
+  period_collected: string | number;
+  total_paid: string | number;
+  balance: string | number;
+  status: string;
+  payment_count: number;
+  period_payment_count: number;
+  last_payment_at: string | null;
   created_at: string;
 };
 
@@ -32,16 +49,25 @@ type FrontDeskFinanceData = {
     end_date: string;
   };
 
-  selected_total: string;
-  cash_total: string;
-  transfer_total: string;
-  pos_total: string;
-  other_total: string;
+  selected_total: string | number;
+  cash_total: string | number;
+  transfer_total: string | number;
+  pos_total: string | number;
+  other_total: string | number;
   selected_payment_count: number;
 
-  payments: Payment[];
+  guest_payments_total: string | number;
+  guest_payment_count: number;
 
-  pagination: Pagination;
+  walk_in_food_drinks_total: string | number;
+  walk_in_food_drinks_payment_count: number;
+  walk_in_food_drinks_order_count: number;
+
+  guest_payments: GuestPayment[];
+  guest_pagination: Pagination;
+
+  walk_in_food_drinks: WalkInFoodDrinksOrder[];
+  walk_in_food_drinks_pagination: Pagination;
 };
 
 type DateFilter =
@@ -61,6 +87,7 @@ export default function FrontDeskFinancePage() {
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
+
   const [paymentMethod, setPaymentMethod] =
     useState("All");
 
@@ -70,7 +97,8 @@ export default function FrontDeskFinancePage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  const [page, setPage] = useState(1);
+  const [guestPage, setGuestPage] = useState(1);
+  const [walkInPage, setWalkInPage] = useState(1);
 
   const pageSize = 20;
 
@@ -101,7 +129,8 @@ export default function FrontDeskFinancePage() {
     dateFilter,
     startDate,
     endDate,
-    page,
+    guestPage,
+    walkInPage,
   ]);
 
   const loadFinance = async () => {
@@ -112,8 +141,21 @@ export default function FrontDeskFinancePage() {
       const params = new URLSearchParams();
 
       params.set("date", dateFilter);
-      params.set("page", String(page));
-      params.set("page_size", String(pageSize));
+
+      params.set(
+        "guest_page",
+        String(guestPage)
+      );
+
+      params.set(
+        "walk_in_page",
+        String(walkInPage)
+      );
+
+      params.set(
+        "page_size",
+        String(pageSize)
+      );
 
       if (search.trim()) {
         params.set(
@@ -182,15 +224,21 @@ export default function FrontDeskFinancePage() {
     })}`;
   };
 
-  const formatDateTime = (value: string) => { 
-    return new Date(value).toLocaleString("en-NG", { 
-        day: "numeric", 
-        month: "short", 
-        hour: "numeric", 
-        minute: "2-digit", 
-        hour12: true, 
-    }); 
-};
+  const formatDateTime = (
+    value: string | null
+  ) => {
+    if (!value) {
+      return "—";
+    }
+
+    return new Date(value).toLocaleString("en-NG", {
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
 
   const getPeriodLabel = () => {
     switch (dateFilter) {
@@ -214,20 +262,40 @@ export default function FrontDeskFinancePage() {
     }
   };
 
+  const getStatusClasses = (
+    status: string
+  ) => {
+    switch (status) {
+      case "Paid":
+        return "bg-green-100 text-green-700";
+
+      case "Cancelled":
+        return "bg-red-100 text-red-700";
+
+      case "Open":
+        return "bg-yellow-100 text-yellow-700";
+
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
+  };
+
   const clearFilters = () => {
     setSearch("");
     setPaymentMethod("All");
     setDateFilter("today");
     setStartDate("");
     setEndDate("");
-    setPage(1);
+    setGuestPage(1);
+    setWalkInPage(1);
   };
 
   const handleDateFilterChange = (
     value: DateFilter
   ) => {
     setDateFilter(value);
-    setPage(1);
+    setGuestPage(1);
+    setWalkInPage(1);
 
     if (value !== "custom") {
       setStartDate("");
@@ -239,28 +307,32 @@ export default function FrontDeskFinancePage() {
     value: string
   ) => {
     setSearch(value);
-    setPage(1);
+    setGuestPage(1);
+    setWalkInPage(1);
   };
 
   const handlePaymentMethodChange = (
     value: string
   ) => {
     setPaymentMethod(value);
-    setPage(1);
+    setGuestPage(1);
+    setWalkInPage(1);
   };
 
   const handleStartDateChange = (
     value: string
   ) => {
     setStartDate(value);
-    setPage(1);
+    setGuestPage(1);
+    setWalkInPage(1);
   };
 
   const handleEndDateChange = (
     value: string
   ) => {
     setEndDate(value);
-    setPage(1);
+    setGuestPage(1);
+    setWalkInPage(1);
   };
 
   if (loading && !data) {
@@ -293,26 +365,11 @@ export default function FrontDeskFinancePage() {
     return null;
   }
 
-  const totalCount =
-    data.pagination?.total_count ?? 0;
+  const guestPagination =
+    data.guest_pagination;
 
-  const currentPage =
-    data.pagination?.page ?? page;
-
-  const currentPageSize =
-    data.pagination?.page_size ?? pageSize;
-
-  const startResult =
-    totalCount === 0
-      ? 0
-      : (currentPage - 1) *
-          currentPageSize +
-        1;
-
-  const endResult = Math.min(
-    currentPage * currentPageSize,
-    totalCount
-  );
+  const walkInPagination =
+    data.walk_in_food_drinks_pagination;
 
   const periodLabel =
     getPeriodLabel();
@@ -361,7 +418,7 @@ export default function FrontDeskFinancePage() {
           </p>
         </div>
 
-        {/* Selected Period Total */}
+        {/* Total Collected */}
         <div className="mb-6 rounded-xl bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-gray-500">
             Total Collected — {periodLabel}
@@ -384,7 +441,56 @@ export default function FrontDeskFinancePage() {
           </p>
         </div>
 
-        {/* Payment Method Cards */}
+        {/* Collection Categories */}
+        <div className="mb-8 grid gap-5 md:grid-cols-2">
+
+          {/* Guest Payments */}
+          <div className="rounded-xl bg-white p-6 shadow-sm">
+            <p className="text-sm font-medium text-gray-500">
+              Guest Payments
+            </p>
+
+            <p className="mt-2 text-3xl font-bold text-gray-800">
+              {formatCurrency(
+                data.guest_payments_total
+              )}
+            </p>
+
+            <p className="mt-2 text-sm text-gray-500">
+              {data.guest_payment_count} payment
+              {data.guest_payment_count === 1
+                ? ""
+                : "s"}
+            </p>
+          </div>
+
+          {/* Walk-in Food & Drinks */}
+          <div className="rounded-xl bg-white p-6 shadow-sm">
+            <p className="text-sm font-medium text-gray-500">
+              Walk-in Food & Drinks
+            </p>
+
+            <p className="mt-2 text-3xl font-bold text-gray-800">
+              {formatCurrency(
+                data.walk_in_food_drinks_total
+              )}
+            </p>
+
+            <p className="mt-2 text-sm text-gray-500">
+              {data.walk_in_food_drinks_order_count} order
+              {data.walk_in_food_drinks_order_count === 1
+                ? ""
+                : "s"}{" "}
+              •{" "}
+              {data.walk_in_food_drinks_payment_count} payment
+              {data.walk_in_food_drinks_payment_count === 1
+                ? ""
+                : "s"}
+            </p>
+          </div>
+        </div>
+
+        {/* Payment Method Summary */}
         <div className="mb-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
 
           <div className="rounded-xl bg-white p-5 shadow-sm">
@@ -434,11 +540,10 @@ export default function FrontDeskFinancePage() {
               )}
             </p>
           </div>
-
         </div>
 
-        {/* Transactions */}
-        <div className="rounded-xl bg-white shadow-sm">
+        {/* Filters */}
+        <div className="mb-8 rounded-xl bg-white shadow-sm">
 
           <div className="border-b border-gray-200 p-6">
             <h2 className="text-xl font-semibold text-gray-800">
@@ -452,9 +557,7 @@ export default function FrontDeskFinancePage() {
             </p>
           </div>
 
-          {/* Filters */}
           <div className="border-b border-gray-200 bg-gray-50 p-6">
-
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 
               {/* Search */}
@@ -471,7 +574,7 @@ export default function FrontDeskFinancePage() {
                       e.target.value
                     )
                   }
-                  placeholder="Guest name, room, or reference..."
+                  placeholder="Guest, customer, room, or reference..."
                   className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-gray-500 focus:ring-1 focus:ring-gray-500"
                 />
               </div>
@@ -549,7 +652,6 @@ export default function FrontDeskFinancePage() {
                   </option>
                 </select>
               </div>
-
             </div>
 
             {/* Custom Dates */}
@@ -589,7 +691,6 @@ export default function FrontDeskFinancePage() {
                     className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-gray-500 focus:ring-1 focus:ring-gray-500"
                   />
                 </div>
-
               </div>
             )}
 
@@ -603,7 +704,6 @@ export default function FrontDeskFinancePage() {
                 Clear Filters
               </button>
             </div>
-
           </div>
 
           {/* Loading */}
@@ -624,150 +724,389 @@ export default function FrontDeskFinancePage() {
             </div>
           )}
 
-          {/* Table */}
-          {data.payments.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              No payment transactions match
-              the selected filters.
-            </div>
-          ) : (
-            <>
-              
-            <div className="overflow-x-auto">
-            <table className="min-w-full">
-                <thead className="bg-gray-50">
-                <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Guest
-                    </th>
+          {/* Guest Payments */}
+          <div className="border-b border-gray-200">
 
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Room
-                    </th>
+            <div className="border-b border-gray-200 p-6">
+              <h2 className="text-xl font-semibold text-gray-800">
+                Guest Payments
+              </h2>
 
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Amount
-                    </th>
-
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Method
-                    </th>
-
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Recorded By
-                    </th>
-
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Date
-                    </th>
-                </tr>
-                </thead>
-
-                <tbody className="divide-y divide-gray-200">
-                {data.payments.map((payment) => (
-                    <tr
-                    key={payment.id}
-                    className="hover:bg-gray-50"
-                    >
-                    <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-800">
-                        {payment.guest_name || "Unknown Guest"}
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
-                        {payment.room_name || "No Room"}
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-800">
-                        {formatCurrency(payment.amount)}
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
-                        {payment.payment_method}
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
-                        {payment.recorded_by || "Unknown"}
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                        {formatDateTime(payment.created_at)}
-                    </td>
-                    </tr>
-                ))}
-                </tbody>
-            </table>
+              <p className="mt-1 text-sm text-gray-500">
+                Payments received from lodge guests.
+              </p>
             </div>
 
+            {data.guest_payments.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                No guest payments match
+                the selected filters.
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
 
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Guest
+                        </th>
 
-              {/* Pagination */}
-              <div className="flex flex-col gap-4 border-t border-gray-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Room
+                        </th>
 
-                <p className="text-sm text-gray-500">
-                  Showing{" "}
-                  <span className="font-medium text-gray-700">
-                    {startResult}
-                  </span>{" "}
-                  –{" "}
-                  <span className="font-medium text-gray-700">
-                    {endResult}
-                  </span>{" "}
-                  of{" "}
-                  <span className="font-medium text-gray-700">
-                    {totalCount}
-                  </span>{" "}
-                  payments
-                </p>
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Reservation
+                        </th>
 
-                <div className="flex items-center gap-2">
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Amount
+                        </th>
 
-                  <button
-                    type="button"
-                    disabled={
-                      !data.pagination.has_previous ||
-                      loading
-                    }
-                    onClick={() =>
-                      setPage(
-                        (current) =>
-                          Math.max(
-                            current - 1,
-                            1
-                          )
-                      )
-                    }
-                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Method
+                        </th>
 
-                  <span className="px-3 text-sm text-gray-600">
-                    Page {currentPage}
-                  </span>
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Recorded By
+                        </th>
 
-                  <button
-                    type="button"
-                    disabled={
-                      !data.pagination.has_next ||
-                      loading
-                    }
-                    onClick={() =>
-                      setPage(
-                        (current) =>
-                          current + 1
-                      )
-                    }
-                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Next
-                  </button>
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Date
+                        </th>
+                      </tr>
+                    </thead>
 
+                    <tbody className="divide-y divide-gray-200">
+                      {data.guest_payments.map(
+                        (payment) => (
+                          <tr
+                            key={`guest-${payment.id}`}
+                            className="hover:bg-gray-50"
+                          >
+                            <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-800">
+                              {payment.guest_name ||
+                                "Unknown Guest"}
+                            </td>
+
+                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
+                              {payment.room_name ||
+                                "No Room"}
+                            </td>
+
+                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
+                              {payment.reservation_id
+                                ? `#${payment.reservation_id}`
+                                : "—"}
+                            </td>
+
+                            <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-800">
+                              {formatCurrency(
+                                payment.amount
+                              )}
+                            </td>
+
+                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
+                              {payment.payment_method}
+                            </td>
+
+                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
+                              {payment.recorded_by ||
+                                "Unknown"}
+                            </td>
+
+                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                              {formatDateTime(
+                                payment.created_at
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      )}
+                    </tbody>
+                  </table>
                 </div>
 
-              </div>
-            </>
-          )}
+                <div className="flex flex-col gap-4 border-t border-gray-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
 
+                  <p className="text-sm text-gray-500">
+                    Showing{" "}
+                    <span className="font-medium text-gray-700">
+                      {guestPagination.total_count === 0
+                        ? 0
+                        : (guestPagination.page - 1) *
+                            guestPagination.page_size +
+                          1}
+                    </span>{" "}
+                    –{" "}
+                    <span className="font-medium text-gray-700">
+                      {Math.min(
+                        guestPagination.page *
+                          guestPagination.page_size,
+                        guestPagination.total_count
+                      )}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-medium text-gray-700">
+                      {guestPagination.total_count}
+                    </span>{" "}
+                    guest payments
+                  </p>
+
+                  <div className="flex items-center gap-2">
+
+                    <button
+                      type="button"
+                      disabled={
+                        !guestPagination.has_previous ||
+                        loading
+                      }
+                      onClick={() =>
+                        setGuestPage(
+                          (current) =>
+                            Math.max(
+                              current - 1,
+                              1
+                            )
+                        )
+                      }
+                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+
+                    <span className="px-3 text-sm text-gray-600">
+                      Page {guestPagination.page}
+                    </span>
+
+                    <button
+                      type="button"
+                      disabled={
+                        !guestPagination.has_next ||
+                        loading
+                      }
+                      onClick={() =>
+                        setGuestPage(
+                          (current) =>
+                            current + 1
+                        )
+                      }
+                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Walk-in Food & Drinks */}
+          <div>
+
+            <div className="border-b border-gray-200 p-6">
+              <h2 className="text-xl font-semibold text-gray-800">
+                Walk-in Food & Drinks
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-500">
+                Food and drink orders from customers without a room.
+              </p>
+            </div>
+
+            {data.walk_in_food_drinks.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                No walk-in food & drinks orders
+                match the selected filters.
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
+
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Customer
+                        </th>
+
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Order
+                        </th>
+
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Sale Total
+                        </th>
+
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Collected
+                        </th>
+
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Total Paid
+                        </th>
+
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Balance
+                        </th>
+
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Status
+                        </th>
+
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Payments
+                        </th>
+
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Last Payment
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-gray-200">
+                      {data.walk_in_food_drinks.map(
+                        (order) => (
+                          <tr
+                            key={`walk-in-order-${order.id}`}
+                            className="hover:bg-gray-50"
+                          >
+                            <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-800">
+                              {order.customer_name ||
+                                "Walk-in Customer"}
+                            </td>
+
+                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
+                              #{order.order_id}
+                            </td>
+
+                            <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-800">
+                              {formatCurrency(
+                                order.order_total
+                              )}
+                            </td>
+
+                            <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-800">
+                              {formatCurrency(
+                                order.period_collected
+                              )}
+                            </td>
+
+                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
+                              {formatCurrency(
+                                order.total_paid
+                              )}
+                            </td>
+
+                            <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-800">
+                              {formatCurrency(
+                                order.balance
+                              )}
+                            </td>
+
+                            <td className="whitespace-nowrap px-6 py-4 text-sm">
+                              <span
+                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusClasses(
+                                  order.status
+                                )}`}
+                              >
+                                {order.status}
+                              </span>
+                            </td>
+
+                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
+                              {order.payment_count}
+                            </td>
+
+                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                              {formatDateTime(
+                                order.last_payment_at
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex flex-col gap-4 border-t border-gray-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+
+                  <p className="text-sm text-gray-500">
+                    Showing{" "}
+                    <span className="font-medium text-gray-700">
+                      {walkInPagination.total_count === 0
+                        ? 0
+                        : (walkInPagination.page - 1) *
+                            walkInPagination.page_size +
+                          1}
+                    </span>{" "}
+                    –{" "}
+                    <span className="font-medium text-gray-700">
+                      {Math.min(
+                        walkInPagination.page *
+                          walkInPagination.page_size,
+                        walkInPagination.total_count
+                      )}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-medium text-gray-700">
+                      {walkInPagination.total_count}
+                    </span>{" "}
+                    walk-in orders
+                  </p>
+
+                  <div className="flex items-center gap-2">
+
+                    <button
+                      type="button"
+                      disabled={
+                        !walkInPagination.has_previous ||
+                        loading
+                      }
+                      onClick={() =>
+                        setWalkInPage(
+                          (current) =>
+                            Math.max(
+                              current - 1,
+                              1
+                            )
+                        )
+                      }
+                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+
+                    <span className="px-3 text-sm text-gray-600">
+                      Page {walkInPagination.page}
+                    </span>
+
+                    <button
+                      type="button"
+                      disabled={
+                        !walkInPagination.has_next ||
+                        loading
+                      }
+                      onClick={() =>
+                        setWalkInPage(
+                          (current) =>
+                            current + 1
+                        )
+                      }
+                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </main>

@@ -154,6 +154,121 @@ class Payment(models.Model):
         return f"{self.reservation} - {self.amount}"
 
 
+class WalkInOrder(models.Model):
+    STATUS_CHOICES = [
+        ("Open", "Open"),
+        ("Paid", "Paid"),
+        ("Cancelled", "Cancelled"),
+    ]
+
+    lodge = models.ForeignKey(
+        Lodge,
+        on_delete=models.CASCADE,
+        related_name="walk_in_orders",
+    )
+    customer_name = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="Open",
+    )
+    notes = models.TextField(
+        blank=True,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_walk_in_orders",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    def __str__(self):
+        return f"Walk-in #{self.id}"
+
+
+class WalkInOrderItem(models.Model):
+    order = models.ForeignKey(
+        WalkInOrder,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+    service_item = models.ForeignKey(
+        ServiceItem,
+        on_delete=models.PROTECT,
+        related_name="walk_in_order_items",
+    )
+    quantity = models.PositiveIntegerField(
+        default=1,
+    )
+    unit_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    @property
+    def total(self):
+        return self.quantity * self.unit_price
+
+    def __str__(self):
+        return f"{self.service_item.name} x {self.quantity}"
+
+
+class WalkInPayment(models.Model):
+    PAYMENT_METHOD_CHOICES = [
+        ("Cash", "Cash"),
+        ("Transfer", "Transfer"),
+        ("POS", "POS"),
+        ("Other", "Other"),
+    ]
+
+    order = models.ForeignKey(
+        WalkInOrder,
+        on_delete=models.CASCADE,
+        related_name="payments",
+    )
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+    )
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+    )
+    reference = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+    notes = models.TextField(
+        blank=True,
+    )
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_walk_in_payments",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    def __str__(self):
+        return f"Walk-in #{self.order_id} - {self.amount}"
+
+
 class ExpenseCategory(models.Model):
     lodge = models.ForeignKey(
         Lodge,

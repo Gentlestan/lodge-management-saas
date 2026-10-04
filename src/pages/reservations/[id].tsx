@@ -9,6 +9,12 @@ type Reservation = {
   id: number;
   guest_name: string;
   room_name: string;
+
+  stay_type: string;
+  short_rest_package: number | null;
+  short_rest_start: string | null;
+  short_rest_end: string | null;
+
   check_in_date: string;
   check_out_date: string;
   number_of_guests: number;
@@ -264,18 +270,26 @@ export default function ReservationDetails() {
               </p>
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-5 sm:grid-cols-2">
+          {/* STAY TYPE */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Stay Type
+            </p>
+            <p className="mt-2 font-semibold text-slate-900">
+              {reservation.stay_type}
+            </p>
+          </div>
 
-              {/* CHECK-IN DATE */}
-              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Check-in Date
-                </p>
-
-                <p className="mt-2 font-semibold text-slate-900">
-                  {reservation.check_in_date}
-                </p>
-              </div>
+          {/* CHECK-IN DATE */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Check-in Date
+            </p>
+            <p className="mt-2 font-semibold text-slate-900">
+              {reservation.check_in_date}
+            </p>
+          </div>
 
               {/* CHECK-OUT DATE */}
               <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -287,6 +301,44 @@ export default function ReservationDetails() {
                   {reservation.check_out_date}
                 </p>
               </div>
+
+              {reservation.stay_type === "Short Rest" && (
+  <>
+    {/* SHORT REST START */}
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Short Rest Start
+      </p>
+      <p className="mt-2 font-semibold text-slate-900">
+        {reservation.short_rest_start
+          ? new Date(
+              reservation.short_rest_start
+            ).toLocaleTimeString("en-NG", {
+              hour: "numeric",
+              minute: "2-digit",
+            })
+          : "Not set"}
+      </p>
+    </div>
+
+        {/* SHORT REST END */}
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Short Rest End
+          </p>
+          <p className="mt-2 font-semibold text-slate-900">
+            {reservation.short_rest_end
+              ? new Date(
+                  reservation.short_rest_end
+                ).toLocaleTimeString("en-NG", {
+                  hour: "numeric",
+                  minute: "2-digit",
+                })
+              : "Not set"}
+          </p>
+        </div>
+      </>
+    )}
 
               {/* ACTUAL CHECK-IN */}
               <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-5">

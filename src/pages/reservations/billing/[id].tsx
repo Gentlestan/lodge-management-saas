@@ -45,6 +45,8 @@ type Reservation = {
   id: number;
   guest_name: string;
   room_name: string;
+  stay_type: string;
+  room_rate: string;
   check_in_date: string;
   check_out_date: string;
   number_of_guests: number;
@@ -202,6 +204,28 @@ if (!serviceItemsResponse.ok) {
           </p>
         </div>
 
+        {reservation.status === "Reserved" && (
+        <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+            Expected Accommodation
+          </p>
+
+          <p className="mt-2 text-lg font-bold text-slate-900">
+            {reservation.stay_type === "Short Rest"
+              ? `Short Rest — ₦${Number(
+                  reservation.room_rate
+                ).toLocaleString()}`
+              : `₦${Number(
+                  reservation.room_rate
+                ).toLocaleString()}/night`}
+          </p>
+
+          <p className="mt-1 text-sm text-slate-600">
+            Accommodation charge will be posted when the guest checks in.
+          </p>
+        </div>
+      )}
+
         <BillingSummary
           totalCharges={summary.total_charges}
           totalPaid={summary.total_payments}
@@ -236,7 +260,10 @@ if (!serviceItemsResponse.ok) {
           }}
         />
 
-        <ChargesList charges={charges} />
+        <ChargesList
+        charges={charges}
+        stayType={reservation.stay_type}
+      />
 
         <PaymentsList payments={payments} />
 

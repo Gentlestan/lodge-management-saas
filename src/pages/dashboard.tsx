@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/auth";
+import { apiFetch, getAuth } from "@/lib/auth";
 
 
 
@@ -37,7 +37,17 @@ export default function Dashboard() {
 
   const [loading, setLoading] = useState(true);
 
+  const [canManageShortRestPackages, setCanManageShortRestPackages] =
+  useState(false);
+
   useEffect(() => {
+    const auth = getAuth();
+
+    if (auth) {
+      setCanManageShortRestPackages(
+        auth.role === "Owner" || auth.role === "Manager"
+      );
+    }
     const loadDashboard = async () => {
       try {
         const response = await apiFetch("/api/dashboard/");
@@ -394,6 +404,19 @@ export default function Dashboard() {
               >
                 Add Reservation
               </button>
+
+              {canManageShortRestPackages && (
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href =
+                    "/settings/short-rest-packages";
+                }}
+                className="rounded-lg bg-orange-600 py-3 font-medium text-white hover:bg-orange-700"
+              >
+                Manage Short Rest Packages
+              </button>
+            )}
 
             </div>
           </div>

@@ -1,10 +1,12 @@
+from datetime import timedelta
+
 from django.utils import timezone
 
 from rest_framework import serializers
 
 from tenants.utils import get_current_lodge
 
-from .models import Reservation
+from .models import Reservation,  ShortRestPackage
 
 
 class ReservationSerializer(serializers.ModelSerializer):
@@ -29,14 +31,41 @@ class ReservationSerializer(serializers.ModelSerializer):
             "checked_out_at",
             "guest_name",
             "room_name",
+            "short_rest_end",
         ]
 
     def validate(self, data):
-        # ---------------------------------------------------------
-        # Get the existing reservation values when this is an edit.
-        # This is important because PATCH may only send changed fields.
-        # ---------------------------------------------------------
         instance = self.instance
+
+        request = self.context.get("request")
+
+        lodge = None
+        if request and request.user.is_authenticated:
+            lodge = get_current_lodge(request.user)
+
+        # ---------------------------------------------------------
+        # BASIC VALUES
+        # ---------------------------------------------------------
+
+        guest = data.get(
+            "guest",
+            instance.guest if instance else None,
+        )
+
+        room = data.get(
+            "room",
+            instance.room if instance else None,
+        )
+
+        stay_type = data.get(
+            "stay_type",
+            instance.stay_type if instance else "Overnight",
+        )
+
+        package = data.get(
+            "short_rest_package",
+            instance.short_rest_package if instance else None,
+        )
 
         check_in = data.get(
             "check_in_date",
@@ -48,51 +77,59 @@ class ReservationSerializer(serializers.ModelSerializer):
             instance.check_out_date if instance else None,
         )
 
-        room = data.get(
-            "room",
-            instance.room if instance else None,
-        )
-
-        guest = data.get(
-            "guest",
-            instance.guest if instance else None,
-        )
-
         number_of_guests = data.get(
             "number_of_guests",
             instance.number_of_guests if instance else None,
         )
 
-        # ---------------------------------------------------------
-        # Lodge isolation
-        # ---------------------------------------------------------
-        request = self.context.get("request")
-        lodge = None
+        short_rest_start = data.get(
+            "short_rest_start",
+            instance.short_rest_start if instance else None,
+        )
 
-        if request and request.user.is_authenticated:
-            lodge = get_current_lodge(request.user)
+        short_rest_end = data.get(
+            "short_rest_end",
+            instance.short_rest_end if instance else None,
+        )
+
+        # ---------------------------------------------------------
+        # LODGE / TENANCY
+        # ---------------------------------------------------------
 
         if lodge:
             if guest and guest.lodge_id != lodge.id:
                 raise serializers.ValidationError(
                     {
-                        "guest": "This guest does not belong to your lodge."
+                        "guest": (
+                            "This guest does not belong to your lodge."
+                        )
                     }
                 )
 
             if room and room.lodge_id != lodge.id:
                 raise serializers.ValidationError(
                     {
-                        "room": "This room does not belong to your lodge."
+                        "room": (
+                            "This room does not belong to your lodge."
+                        )
                     }
                 )
 
-        
+            if package and package.lodge_id != lodge.id:
+                raise serializers.ValidationError(
+                    {
+                        "short_rest_package": (
+                            "This short-rest package does not "
+                            "belong to your lodge."
+                        )
+                    }
+                )
+
         # ---------------------------------------------------------
-        # Reservation status rules
+        # EXISTING RESERVATION STATUS RULES
         # ---------------------------------------------------------
+
         if instance:
-            # Checked-out reservations should not be edited.
             if instance.status == "Checked Out":
                 raise serializers.ValidationError(
                     {
@@ -102,7 +139,6 @@ class ReservationSerializer(serializers.ModelSerializer):
                     }
                 )
 
-            # Cancelled reservations should not be edited.
             if instance.status == "Cancelled":
                 raise serializers.ValidationError(
                     {
@@ -112,12 +148,72 @@ class ReservationSerializer(serializers.ModelSerializer):
                     }
                 )
 
-            # A checked-in guest is already staying in the room.
-            # Their check-in date must not be changed.
+            # Once the guest is inside the room, the type and
+            # scheduled short-rest details cannot be changed.
             if instance.status == "Checked In":
+
+                if "stay_type" in data:
+                    if data["stay_type"] != instance.stay_type:
+                        raise serializers.ValidationError(
+                            {
+                                "stay_type": (
+                                    "Stay type cannot be changed "
+                                    "after the guest has checked in."
+                                )
+                            }
+                        )
+
+                if "short_rest_package" in data:
+                    new_package = data["short_rest_package"]
+
+                    if (
+                        new_package is not None
+                        and new_package.id != instance.short_rest_package_id
+                    ):
+                        raise serializers.ValidationError(
+                            {
+                                "short_rest_package": (
+                                    "The short-rest package cannot "
+                                    "be changed after the guest "
+                                    "has checked in."
+                                )
+                            }
+                        )
+
+                if "short_rest_start" in data:
+                    if (
+                        data["short_rest_start"]
+                        != instance.short_rest_start
+                    ):
+                        raise serializers.ValidationError(
+                            {
+                                "short_rest_start": (
+                                    "The short-rest booking time "
+                                    "cannot be changed after the "
+                                    "guest has checked in."
+                                )
+                            }
+                        )
+
+                if "short_rest_end" in data:
+                    if (
+                        data["short_rest_end"]
+                        != instance.short_rest_end
+                    ):
+                        raise serializers.ValidationError(
+                            {
+                                "short_rest_end": (
+                                    "The short-rest end time cannot "
+                                    "be changed after the guest "
+                                    "has checked in."
+                                )
+                            }
+                        )
+
                 if (
                     "check_in_date" in data
-                    and data["check_in_date"] != instance.check_in_date
+                    and data["check_in_date"]
+                    != instance.check_in_date
                 ):
                     raise serializers.ValidationError(
                         {
@@ -128,8 +224,6 @@ class ReservationSerializer(serializers.ModelSerializer):
                         }
                     )
 
-                # A checked-in guest cannot be moved to another room
-                # through the normal reservation edit.
                 if (
                     "room" in data
                     and data["room"].id != instance.room_id
@@ -143,46 +237,42 @@ class ReservationSerializer(serializers.ModelSerializer):
                         }
                     )
 
-                # A checked-in guest can only extend their stay.
-                if (
-                    "check_out_date" in data
-                    and data["check_out_date"] < instance.check_out_date
-                ):
-                    raise serializers.ValidationError(
-                        {
-                            "check_out_date": (
-                                "The check-out date cannot be moved "
-                                "earlier after the guest has checked in."
+                if instance.stay_type == "Overnight":
+                    if (
+                        "check_out_date" in data
+                        and data["check_out_date"]
+                        < instance.check_out_date
+                    ):
+                        raise serializers.ValidationError(
+                            {
+                                "check_out_date": (
+                                    "The check-out date cannot be "
+                                    "moved earlier after the guest "
+                                    "has checked in."
+                                )
+                            }
+                        )
+
+                else:
+                    if "check_out_date" in data:
+                        if (
+                            data["check_out_date"]
+                            != instance.check_out_date
+                        ):
+                            raise serializers.ValidationError(
+                                {
+                                    "check_out_date": (
+                                        "The short-rest booking date "
+                                        "cannot be changed after "
+                                        "the guest has checked in."
+                                    )
+                                }
                             )
-                        }
-                    )
 
         # ---------------------------------------------------------
-        # Check-in date validation
+        # GUEST
         # ---------------------------------------------------------
-        # New reservations cannot have a check-in date in the past.
-        if (
-            check_in
-            and check_in < timezone.localdate()
-            and (
-                not self.instance
-                or (
-                    self.instance.status == "Reserved"
-                    and "check_in_date" in data
-                )
-            )
-        ):
-            raise serializers.ValidationError(
-                {
-                    "check_in_date": (
-                        "Check-in date cannot be in the past."
-                    )
-                }
-            )
 
-        # ---------------------------------------------------------
-        # Guest validation
-        # ---------------------------------------------------------
         if guest and not guest.active:
             raise serializers.ValidationError(
                 {
@@ -194,8 +284,9 @@ class ReservationSerializer(serializers.ModelSerializer):
             )
 
         # ---------------------------------------------------------
-        # Room validation
+        # ROOM
         # ---------------------------------------------------------
+
         if room and not room.active:
             raise serializers.ValidationError(
                 {
@@ -205,8 +296,6 @@ class ReservationSerializer(serializers.ModelSerializer):
                 }
             )
 
-        # A maintenance room cannot be selected for a new reservation
-        # or for moving an existing reservation into that room.
         if room and room.status == "Maintenance":
             if not instance or instance.room_id != room.id:
                 raise serializers.ValidationError(
@@ -219,10 +308,14 @@ class ReservationSerializer(serializers.ModelSerializer):
                 )
 
         # ---------------------------------------------------------
-        # Number of guests / room capacity
+        # OCCUPANCY
         # ---------------------------------------------------------
+
         if room and number_of_guests:
-            if number_of_guests > room.maximum_occupancy:
+            if (
+                room.maximum_occupancy is not None
+                and number_of_guests > room.maximum_occupancy
+            ):
                 raise serializers.ValidationError(
                     {
                         "number_of_guests": (
@@ -233,9 +326,21 @@ class ReservationSerializer(serializers.ModelSerializer):
                 )
 
         # ---------------------------------------------------------
-        # Date validation
+        # OVERNIGHT VALIDATION
         # ---------------------------------------------------------
-        if check_in and check_out:
+
+        if stay_type == "Overnight":
+
+            if not check_in or not check_out:
+                raise serializers.ValidationError(
+                    {
+                        "check_out_date": (
+                            "Check-in and check-out dates are "
+                            "required for an overnight stay."
+                        )
+                    }
+                )
+
             if check_out <= check_in:
                 raise serializers.ValidationError(
                     {
@@ -246,34 +351,320 @@ class ReservationSerializer(serializers.ModelSerializer):
                     }
                 )
 
+            # Overnight reservations cannot use a short-rest package.
+            if package is not None:
+                raise serializers.ValidationError(
+                    {
+                        "short_rest_package": (
+                            "An overnight reservation cannot have "
+                            "a short-rest package."
+                        )
+                    }
+                )
+
+            if short_rest_start is not None:
+                raise serializers.ValidationError(
+                    {
+                        "short_rest_start": (
+                            "Short-rest booking time is only "
+                            "used for short-rest reservations."
+                        )
+                    }
+                )
+
+            if short_rest_end is not None:
+                raise serializers.ValidationError(
+                    {
+                        "short_rest_end": (
+                            "Short-rest end time is only used "
+                            "for short-rest reservations."
+                        )
+                    }
+                )
+
+            if (
+                check_in
+                and check_in < timezone.localdate()
+                and (
+                    not instance
+                    or (
+                        instance.status == "Reserved"
+                        and "check_in_date" in data
+                    )
+                )
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "check_in_date": (
+                            "Check-in date cannot be in the past."
+                        )
+                    }
+                )
+
         # ---------------------------------------------------------
-        # Prevent overlapping reservations
+        # SHORT REST VALIDATION
         # ---------------------------------------------------------
-        if room and check_in and check_out:
-            overlapping_reservations = Reservation.objects.filter(
+
+        elif stay_type == "Short Rest":
+
+            if package is None:
+                raise serializers.ValidationError(
+                    {
+                        "short_rest_package": (
+                            "A short-rest package is required."
+                        )
+                    }
+                )
+
+            # Only require the package to be active when it is
+            # being selected/changed, not when editing an old
+            # reservation that already uses a package.
+            package_changed = (
+                not instance
+                or "short_rest_package" in data
+                and (
+                    instance.short_rest_package_id
+                    != package.id
+                )
+            )
+
+            if package_changed and not package.active:
+                raise serializers.ValidationError(
+                    {
+                        "short_rest_package": (
+                            "This short-rest package is inactive "
+                            "and cannot be selected."
+                        )
+                    }
+                )
+
+            if not short_rest_start:
+                raise serializers.ValidationError(
+                    {
+                        "short_rest_start": (
+                            "A booking/start time is required "
+                            "for a short-rest reservation."
+                        )
+                    }
+                )
+
+            # The frontend may send short_rest_end, but the backend
+            # remains the authority for calculating it.
+            calculated_end = (
+                short_rest_start
+                + timedelta(hours=package.duration_hours)
+            )
+
+            data["short_rest_end"] = calculated_end
+            short_rest_end = calculated_end
+
+            # Short rest must remain within one calendar day.
+            if calculated_end.date() != short_rest_start.date():
+                raise serializers.ValidationError(
+                    {
+                        "short_rest_start": (
+                            "A short-rest booking cannot cross "
+                            "midnight."
+                        )
+                    }
+                )
+
+            # The date fields mirror the booking date for
+            # compatibility with the existing Reservation model.
+            if check_in != short_rest_start.date():
+                raise serializers.ValidationError(
+                    {
+                        "check_in_date": (
+                            "Short-rest check-in date must match "
+                            "the booking date."
+                        )
+                    }
+                )
+
+            if check_out != short_rest_start.date():
+                raise serializers.ValidationError(
+                    {
+                        "check_out_date": (
+                            "Short-rest check-out date must match "
+                            "the booking date."
+                        )
+                    }
+                )
+
+            # A short-rest booking cannot be created in the past.
+            if not instance:
+                if short_rest_start < timezone.now():
+                    raise serializers.ValidationError(
+                        {
+                            "short_rest_start": (
+                                "Short-rest booking time cannot "
+                                "be in the past."
+                            )
+                        }
+                    )
+
+        else:
+            raise serializers.ValidationError(
+                {
+                    "stay_type": (
+                        "Invalid stay type."
+                    )
+                }
+            )
+
+        # ---------------------------------------------------------
+        # ROOM AVAILABILITY
+        # ---------------------------------------------------------
+
+        if room and stay_type == "Overnight":
+
+            # Existing overnight-vs-overnight overlap.
+            overlapping_overnight = Reservation.objects.filter(
                 room=room,
+                stay_type="Overnight",
                 check_in_date__lt=check_out,
                 check_out_date__gt=check_in,
             ).exclude(
                 status__in=["Cancelled", "Checked Out"]
             )
 
-            # When editing an existing reservation, exclude itself.
             if instance:
-                overlapping_reservations = (
-                    overlapping_reservations.exclude(
+                overlapping_overnight = (
+                    overlapping_overnight.exclude(
                         id=instance.id
                     )
                 )
 
-            if overlapping_reservations.exists():
+            if overlapping_overnight.exists():
                 raise serializers.ValidationError(
                     {
                         "room": (
-                            "This room is already reserved for some "
-                            "or all of these dates."
+                            "This room is already reserved for "
+                            "some or all of these dates."
+                        )
+                    }
+                )
+
+            # An overnight reservation occupies the room for each
+            # calendar date from check-in through the day before
+            # checkout.
+            #
+            # Therefore a short rest conflicts when its booking
+            # date falls inside [check_in, check_out).
+            overlapping_short_rest = (
+                Reservation.objects.filter(
+                    room=room,
+                    stay_type="Short Rest",
+                    short_rest_start__date__gte=check_in,
+                    short_rest_start__date__lt=check_out,
+                )
+                .exclude(
+                    status__in=["Cancelled", "Checked Out"]
+                )
+            )
+
+            if instance:
+                overlapping_short_rest = (
+                    overlapping_short_rest.exclude(
+                        id=instance.id
+                    )
+                )
+
+            if overlapping_short_rest.exists():
+                raise serializers.ValidationError(
+                    {
+                        "room": (
+                            "This room has a short-rest booking "
+                            "during the requested overnight stay."
+                        )
+                    }
+                )
+
+        elif room and stay_type == "Short Rest":
+
+            # Short rest vs overnight.
+            #
+            # An overnight reservation occupies the room on every
+            # calendar date from check-in through the day before
+            # checkout.
+            #
+            # A short rest on the overnight checkout date is
+            # therefore allowed by this calendar-date boundary.
+            overlapping_overnight = (
+                Reservation.objects.filter(
+                    room=room,
+                    stay_type="Overnight",
+                    check_in_date__lte=short_rest_start.date(),
+                    check_out_date__gt=short_rest_start.date(),
+                )
+                .exclude(
+                    status__in=["Cancelled", "Checked Out"]
+                )
+            )
+
+            if instance:
+                overlapping_overnight = (
+                    overlapping_overnight.exclude(
+                        id=instance.id
+                    )
+                )
+
+            if overlapping_overnight.exists():
+                raise serializers.ValidationError(
+                    {
+                        "room": (
+                            "This room is occupied by an overnight "
+                            "reservation on the selected booking date."
+                        )
+                    }
+                )
+
+            # Short-rest vs short-rest.
+            #
+            # Half-open interval:
+            # [start, end)
+            #
+            # Therefore:
+            # 2:00-4:00 and 4:00-6:00 do NOT overlap.
+            overlapping_short_rest = (
+                Reservation.objects.filter(
+                    room=room,
+                    stay_type="Short Rest",
+                    short_rest_start__lt=short_rest_end,
+                    short_rest_end__gt=short_rest_start,
+                )
+                .exclude(
+                    status__in=["Cancelled", "Checked Out"]
+                )
+            )
+
+            if instance:
+                overlapping_short_rest = (
+                    overlapping_short_rest.exclude(
+                        id=instance.id
+                    )
+                )
+
+            if overlapping_short_rest.exists():
+                raise serializers.ValidationError(
+                    {
+                        "room": (
+                            "This room is already booked for "
+                            "some or all of the selected "
+                            "short-rest time."
                         )
                     }
                 )
 
         return data
+
+class ShortRestPackageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShortRestPackage
+        fields = [
+            "id",
+            "name",
+            "duration_hours",
+            "price",
+            "active",
+        ]

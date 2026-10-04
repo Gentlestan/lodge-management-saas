@@ -5,6 +5,11 @@ from .views import (
     ServiceItemDetailView,
     ChargeListCreateView,
     PaymentListCreateView,
+    WalkInOrderListCreateView,
+    WalkInOrderDetailView,
+    WalkInOrderItemListCreateView,
+    WalkInOrderItemDetailView,
+    WalkInPaymentListCreateView,
     FrontDeskFinanceView,
     BillingSummaryView,
     ExpenseCategoryListCreateView,
@@ -97,5 +102,35 @@ urlpatterns = [
         "salary-payments/",
         SalaryPaymentListCreateView.as_view(),
         name="salary-payment-list-create",
+    ),
+
+        path(
+        "walk-in-orders/",
+        WalkInOrderListCreateView.as_view(),
+        name="walk-in-order-list-create",
+    ),
+
+    path(
+        "walk-in-orders/<int:pk>/",
+        WalkInOrderDetailView.as_view(),
+        name="walk-in-order-detail",
+    ),
+
+    path(
+        "walk-in-orders/<int:order_id>/items/",
+        WalkInOrderItemListCreateView.as_view(),
+        name="walk-in-order-item-list-create",
+    ),
+
+    path(
+        "walk-in-order-items/<int:pk>/",
+        WalkInOrderItemDetailView.as_view(),
+        name="walk-in-order-item-detail",
+    ),
+
+    path(
+        "walk-in-payments/",
+        WalkInPaymentListCreateView.as_view(),
+        name="walk-in-payment-list-create",
     ),
 ]

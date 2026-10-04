@@ -5,9 +5,10 @@ from datetime import datetime
 from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404
 
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
+from django.utils.dateparse import parse_date
 
 from django.db import transaction
 
@@ -29,6 +30,9 @@ from .models import (
     ServiceItem,
     Charge,
     Payment,
+    WalkInOrder,
+    WalkInOrderItem,
+    WalkInPayment,
     ExpenseCategory,
     Expense,
     Staff,
@@ -39,6 +43,9 @@ from .serializers import (
     ServiceItemSerializer,
     ChargeSerializer,
     PaymentSerializer,
+    WalkInOrderSerializer,
+    WalkInOrderItemSerializer,
+    WalkInPaymentSerializer,
     ExpenseCategorySerializer,
     ExpenseSerializer,
     StaffSerializer,
@@ -227,10 +234,674 @@ class PaymentListCreateView(generics.ListCreateAPIView):
             )
 
 
+class WalkInOrderListCreateView(generics.ListCreateAPIView):
+    """
+    Create and list walk-in Food/Drinks orders.
+
+    Walk-in orders do not require a reservation or room.
+    They are strictly scoped to the current lodge.
+    """
+
+    serializer_class = WalkInOrderSerializer
+    permission_classes = [IsFrontDeskFinanceUser]
+
+    def get_queryset(self):
+        membership = (
+            self.request.user.memberships.filter(
+                active=True
+            )
+            .select_related("lodge")
+            .first()
+        )
+
+        if not membership:
+            return WalkInOrder.objects.none()
+
+        queryset = (
+            WalkInOrder.objects.filter(
+                lodge=membership.lodge
+            )
+            .order_by("-created_at")
+        )
+
+        # ---------------------------------------------------------
+        # DATE FILTER
+        # ---------------------------------------------------------
+        #
+        # Default:
+        #   today's orders only
+        #
+        # Supported:
+        #   ?date=today
+        #   ?date=all
+        #   ?date=2026-09-30
+        #
+        date_param = self.request.query_params.get("date")
+
+        if not date_param:
+            date_param = "today"
+
+        date_param = date_param.strip().lower()
+
+        if date_param == "today":
+            queryset = queryset.filter(
+                created_at__date=timezone.localdate()
+            )
+
+        elif date_param == "all":
+            pass
+
+        else:
+            selected_date = parse_date(date_param)
+
+            if selected_date:
+                queryset = queryset.filter(
+                    created_at__date=selected_date
+                )
+            else:
+                queryset = queryset.none()
+
+        # ---------------------------------------------------------
+        # STATUS FILTER
+        # ---------------------------------------------------------
+        #
+        # Supported:
+        #   ?status=Open
+        #   ?status=Paid
+        #   ?status=Cancelled
+        #
+        status_param = self.request.query_params.get("status")
+
+        if status_param:
+            status_param = status_param.strip()
+
+            if status_param.lower() != "all":
+                queryset = queryset.filter(
+                    status=status_param
+                )
+
+        # ---------------------------------------------------------
+        # SEARCH FILTER
+        # ---------------------------------------------------------
+        #
+        # Searches:
+        #   customer name
+        #   order number
+        #
+        # Examples:
+        #   ?search=Maek
+        #   ?search=3
+        #   ?search=#3
+        #
+        search = self.request.query_params.get("search")
+
+        if search:
+            search = search.strip()
+
+            search_query = Q(
+                customer_name__icontains=search
+            )
+
+            normalized_order_search = (
+                search.lstrip("#").strip()
+            )
+
+            if normalized_order_search.isdigit():
+                search_query |= Q(
+                    id=int(normalized_order_search)
+                )
+
+            queryset = queryset.filter(search_query)
+
+        # ---------------------------------------------------------
+        # EXACT ORDER ID FILTER
+        # ---------------------------------------------------------
+        #
+        # Example:
+        #   ?order_id=3
+        #
+        order_id = self.request.query_params.get("order_id")
+
+        if order_id:
+            try:
+                queryset = queryset.filter(
+                    id=int(order_id)
+                )
+            except (TypeError, ValueError):
+                queryset = queryset.none()
+
+        return queryset
+
+    def perform_create(self, serializer):
+        membership = (
+            self.request.user.memberships.filter(
+                active=True
+            )
+            .select_related("lodge")
+            .first()
+        )
+
+        if not membership:
+            raise PermissionDenied(
+                "No active lodge membership found."
+            )
+
+        with transaction.atomic():
+            order = serializer.save()
+
+            AuditService.log(
+                actor=self.request.user,
+                lodge=order.lodge,
+                action=AuditLog.Action.CREATE,
+                obj=order,
+                changes={
+                    "customer_name": {
+                        "from": None,
+                        "to": order.customer_name,
+                    },
+                    "status": {
+                        "from": None,
+                        "to": order.status,
+                    },
+                },
+                details={
+                    "walk_in_order_id": order.id,
+                },
+            )
+
+
+class WalkInOrderDetailView(
+    generics.RetrieveUpdateAPIView
+):
+    """
+    View or update a walk-in order.
+
+    Items and payments are handled through their
+    dedicated endpoints.
+    """
+
+    serializer_class = WalkInOrderSerializer
+    permission_classes = [IsFrontDeskFinanceUser]
+
+    def get_queryset(self):
+        membership = (
+            self.request.user.memberships.filter(
+                active=True
+            )
+            .select_related("lodge")
+            .first()
+        )
+
+        if not membership:
+            return WalkInOrder.objects.none()
+
+        return (
+            WalkInOrder.objects.filter(
+                lodge=membership.lodge
+            )
+            .prefetch_related(
+                "items__service_item",
+                "payments",
+            )
+            .select_related("created_by")
+        )
+
+    def perform_update(self, serializer):
+        order = self.get_object()
+
+        if order.status == "Cancelled":
+            raise PermissionDenied(
+                "Cancelled walk-in orders cannot be edited."
+            )
+
+        if order.status == "Paid":
+            raise PermissionDenied(
+                "Paid walk-in orders cannot be edited."
+            )
+
+
+
+        old_values = {
+            "customer_name": order.customer_name,
+            "notes": order.notes,
+        }
+
+        with transaction.atomic():
+            order = serializer.save()
+
+            changes = {}
+
+            if (
+                old_values["customer_name"]
+                != order.customer_name
+            ):
+                changes["customer_name"] = {
+                    "from": old_values["customer_name"],
+                    "to": order.customer_name,
+                }
+
+            if old_values["notes"] != order.notes:
+                changes["notes"] = {
+                    "from": old_values["notes"],
+                    "to": order.notes,
+                }
+
+            if changes:
+                AuditService.log(
+                    actor=self.request.user,
+                    lodge=order.lodge,
+                    action=AuditLog.Action.UPDATE,
+                    obj=order,
+                    changes=changes,
+                    details={
+                        "walk_in_order_id": order.id,
+                    },
+                )
+
+
+class WalkInOrderItemListCreateView(
+    generics.ListCreateAPIView
+):
+    """
+    List or add Food/Drinks items to a walk-in order.
+    """
+
+    serializer_class = WalkInOrderItemSerializer
+    permission_classes = [IsFrontDeskFinanceUser]
+
+    def get_order(self):
+        membership = (
+            self.request.user.memberships.filter(
+                active=True
+            )
+            .select_related("lodge")
+            .first()
+        )
+
+        if not membership:
+            raise PermissionDenied(
+                "No active lodge membership found."
+            )
+
+        return get_object_or_404(
+            WalkInOrder,
+            id=self.kwargs["order_id"],
+            lodge=membership.lodge,
+        )
+
+    def get_queryset(self):
+        order = self.get_order()
+
+        return (
+            WalkInOrderItem.objects.filter(
+                order=order
+            )
+            .select_related("service_item")
+            .order_by("id")
+        )
+
+    def perform_create(self, serializer):
+        order = self.get_order()
+
+        if order.status == "Cancelled":
+            raise PermissionDenied(
+                "Items cannot be added to a cancelled order."
+            )
+
+        if order.status == "Paid":
+            raise PermissionDenied(
+                "Items cannot be added to a paid order."
+            )
+
+        with transaction.atomic():
+            item = serializer.save(order=order)
+
+            AuditService.log(
+                actor=self.request.user,
+                lodge=order.lodge,
+                action=AuditLog.Action.CREATE,
+                obj=item,
+                changes={
+                    "order_id": {
+                        "from": None,
+                        "to": order.id,
+                    },
+                    "service_item_id": {
+                        "from": None,
+                        "to": item.service_item_id,
+                    },
+                    "quantity": {
+                        "from": None,
+                        "to": item.quantity,
+                    },
+                    "unit_price": {
+                        "from": None,
+                        "to": str(item.unit_price),
+                    },
+                },
+                details={
+                    "total": str(item.total),
+                    "walk_in_order_id": order.id,
+                },
+            )
+
+
+class WalkInOrderItemDetailView(
+    generics.RetrieveUpdateDestroyAPIView
+):
+    """
+    View, update, or remove an item from a walk-in order.
+    """
+
+    serializer_class = WalkInOrderItemSerializer
+    permission_classes = [IsFrontDeskFinanceUser]
+
+    def get_queryset(self):
+        membership = (
+            self.request.user.memberships.filter(
+                active=True
+            )
+            .select_related("lodge")
+            .first()
+        )
+
+        if not membership:
+            return WalkInOrderItem.objects.none()
+
+        return (
+            WalkInOrderItem.objects.filter(
+                order__lodge=membership.lodge
+            )
+            .select_related(
+                "order",
+                "service_item",
+            )
+        )
+
+    def perform_update(self, serializer):
+        item = self.get_object()
+
+        if item.order.status == "Cancelled":
+            raise PermissionDenied(
+                "Items cannot be edited on a cancelled order."
+            )
+
+        if item.order.status == "Paid":
+            raise PermissionDenied(
+                "Items cannot be edited on a paid order."
+            )
+
+        if item.order.payments.exists():
+            raise PermissionDenied(
+                "Items cannot be edited after a payment has been recorded."
+            )
+
+        old_values = {
+            "service_item_id": item.service_item_id,
+            "quantity": item.quantity,
+            "unit_price": str(item.unit_price),
+        }
+
+        with transaction.atomic():
+            item = serializer.save()
+
+            changes = {}
+
+            if (
+                old_values["service_item_id"]
+                != item.service_item_id
+            ):
+                changes["service_item_id"] = {
+                    "from": old_values["service_item_id"],
+                    "to": item.service_item_id,
+                }
+
+            if old_values["quantity"] != item.quantity:
+                changes["quantity"] = {
+                    "from": old_values["quantity"],
+                    "to": item.quantity,
+                }
+
+            if old_values["unit_price"] != str(
+                item.unit_price
+            ):
+                changes["unit_price"] = {
+                    "from": old_values["unit_price"],
+                    "to": str(item.unit_price),
+                }
+
+            if changes:
+                AuditService.log(
+                    actor=self.request.user,
+                    lodge=item.order.lodge,
+                    action=AuditLog.Action.UPDATE,
+                    obj=item,
+                    changes=changes,
+                    details={
+                        "total": str(item.total),
+                        "walk_in_order_id": item.order_id,
+                    },
+                )
+
+    def perform_destroy(self, instance):
+        item = instance
+
+        if item.order.status == "Cancelled":
+            raise PermissionDenied(
+                "Items cannot be removed from a cancelled order."
+            )
+
+        if item.order.status == "Paid":
+            raise PermissionDenied(
+                "Items cannot be removed from a paid order."
+            )
+
+        if item.order.payments.exists():
+            raise PermissionDenied(
+                "Items cannot be removed after a payment has been recorded."
+            )
+
+        with transaction.atomic():
+            AuditService.log(
+                actor=self.request.user,
+                lodge=item.order.lodge,
+                action=AuditLog.Action.DELETE,
+                obj=item,
+                changes={
+                    "service_item_id": item.service_item_id,
+                    "quantity": item.quantity,
+                    "unit_price": str(item.unit_price),
+                },
+                details={
+                    "total": str(item.total),
+                    "walk_in_order_id": item.order_id,
+                },
+            )
+
+            item.delete()
+
+
+class WalkInPaymentListCreateView(
+    generics.ListCreateAPIView
+):
+    """
+    List and record payments for walk-in F&B orders.
+    """
+
+    serializer_class = WalkInPaymentSerializer
+    permission_classes = [IsFrontDeskFinanceUser]
+
+    def get_order(self):
+        membership = (
+            self.request.user.memberships.filter(
+                active=True
+            )
+            .select_related("lodge")
+            .first()
+        )
+
+        if not membership:
+            raise PermissionDenied(
+                "No active lodge membership found."
+            )
+
+        order_id = self.request.query_params.get("order")
+
+        if not order_id:
+            raise PermissionDenied(
+                "An order ID is required."
+            )
+
+        return get_object_or_404(
+            WalkInOrder,
+            id=order_id,
+            lodge=membership.lodge,
+        )
+
+    def get_queryset(self):
+        membership = (
+            self.request.user.memberships.filter(
+                active=True
+            )
+            .select_related("lodge")
+            .first()
+        )
+
+        if not membership:
+            return WalkInPayment.objects.none()
+
+        queryset = (
+            WalkInPayment.objects.filter(
+                order__lodge=membership.lodge
+            )
+            .select_related(
+                "order",
+                "recorded_by",
+            )
+            .order_by("-created_at")
+        )
+
+        order_id = self.request.query_params.get(
+            "order"
+        )
+
+        if order_id:
+            queryset = queryset.filter(
+                order_id=order_id
+            )
+
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+        """
+        Resolve the walk-in order before serializer validation.
+        The serializer needs the order to validate lodge,
+        status, balance, and payment amount.
+        """
+
+        order = self.get_order()
+
+        data = request.data.copy()
+        data["order"] = order.id
+
+        serializer = self.get_serializer(
+            data=data
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        self.perform_create(serializer)
+
+        headers = self.get_success_headers(
+            serializer.data
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers,
+        )
+
+    def perform_create(self, serializer):
+        order = self.get_order()
+
+        if order.status == "Cancelled":
+            raise PermissionDenied(
+                "Payments cannot be added to a cancelled order."
+            )
+
+        if order.status == "Paid":
+            raise PermissionDenied(
+                "This walk-in order has already been fully paid."
+            )
+
+        with transaction.atomic():
+            order = (
+                WalkInOrder.objects.select_for_update()
+                .get(id=order.id)
+            )
+
+            payment = serializer.save(
+                order=order,
+                recorded_by=self.request.user,
+            )
+
+            total_paid = (
+                WalkInPayment.objects.filter(
+                    order=order
+                )
+                .aggregate(
+                    total=Sum("amount")
+                )["total"]
+                or Decimal("0.00")
+            )
+
+            total = sum(
+                item.total
+                for item in order.items.all()
+            )
+
+            if total_paid == total:
+                order.status = "Paid"
+                order.save(
+                    update_fields=[
+                        "status",
+                        "updated_at",
+                    ]
+                )
+
+            AuditService.log(
+                actor=self.request.user,
+                lodge=order.lodge,
+                action=AuditLog.Action.CREATE,
+                obj=payment,
+                changes={
+                    "amount": {
+                        "from": None,
+                        "to": str(payment.amount),
+                    },
+                    "payment_method": {
+                        "from": None,
+                        "to": payment.payment_method,
+                    },
+                },
+                details={
+                    "walk_in_order_id": order.id,
+                    "order_total": str(total),
+                    "total_paid": str(total_paid),
+                    "order_status": order.status,
+                },
+            )
 
 class FrontDeskFinanceView(generics.GenericAPIView):
     """
     Returns operational payment information for the front desk.
+
+    Includes:
+    - Guest payments
+    - Walk-in Food & Drinks orders
 
     Accessible by:
     - Owner
@@ -238,21 +909,17 @@ class FrontDeskFinanceView(generics.GenericAPIView):
     - Receptionist
 
     Supports:
-    - Search by guest name, room, or reference
+    - Search
     - Date filters
     - Payment method filter
     - Pagination
-
-    The summary follows the selected date period.
     """
 
     permission_classes = [IsFrontDeskFinanceUser]
 
     def get(self, request):
         membership = (
-            request.user.memberships.filter(
-                active=True
-            )
+            request.user.memberships.filter(active=True)
             .select_related("lodge")
             .first()
         )
@@ -269,7 +936,6 @@ class FrontDeskFinanceView(generics.GenericAPIView):
         # --------------------------------
         # Date filter
         # --------------------------------
-
         date_filter = request.query_params.get(
             "date",
             "today",
@@ -280,7 +946,6 @@ class FrontDeskFinanceView(generics.GenericAPIView):
 
         if date_filter == "yesterday":
             yesterday = today - timezone.timedelta(days=1)
-
             summary_start_date = yesterday
             summary_end_date = yesterday
 
@@ -296,12 +961,8 @@ class FrontDeskFinanceView(generics.GenericAPIView):
             summary_end_date = today
 
         elif date_filter == "custom":
-            start_date = request.query_params.get(
-                "start_date"
-            )
-            end_date = request.query_params.get(
-                "end_date"
-            )
+            start_date = request.query_params.get("start_date")
+            end_date = request.query_params.get("end_date")
 
             if start_date:
                 summary_start_date = start_date
@@ -310,61 +971,144 @@ class FrontDeskFinanceView(generics.GenericAPIView):
                 summary_end_date = end_date
 
         # --------------------------------
-        # Selected-period summary
+        # Reservation payment summary
         # --------------------------------
-
-        summary_payments = Payment.objects.filter(
+        summary_reservation_payments = Payment.objects.filter(
             reservation__lodge=lodge,
             created_at__date__gte=summary_start_date,
             created_at__date__lte=summary_end_date,
         )
 
-        selected_total = (
-            summary_payments.aggregate(
+        # --------------------------------
+        # Walk-in Food & Drinks payment summary
+        # --------------------------------
+        summary_walk_in_payments = WalkInPayment.objects.filter(
+            order__lodge=lodge,
+            created_at__date__gte=summary_start_date,
+            created_at__date__lte=summary_end_date,
+        )
+
+        # --------------------------------
+        # Selected-period summary
+        # --------------------------------
+        guest_payments_total = (
+            summary_reservation_payments.aggregate(
                 total=Sum("amount")
             )["total"]
             or Decimal("0.00")
         )
 
-        cash_total = (
-            summary_payments.filter(
+        walk_in_food_drinks_total = (
+            summary_walk_in_payments.aggregate(
+                total=Sum("amount")
+            )["total"]
+            or Decimal("0.00")
+        )
+
+        selected_total = (
+            guest_payments_total
+            + walk_in_food_drinks_total
+        )
+
+        guest_payment_count = (
+            summary_reservation_payments.count()
+        )
+
+        walk_in_food_drinks_payment_count = (
+            summary_walk_in_payments.count()
+        )
+
+        selected_payment_count = (
+            guest_payment_count
+            + walk_in_food_drinks_payment_count
+        )
+
+        # --------------------------------
+        # Payment method totals
+        # --------------------------------
+
+        # Cash
+        cash_guest = (
+            summary_reservation_payments.filter(
                 payment_method="Cash"
             )
             .aggregate(total=Sum("amount"))["total"]
             or Decimal("0.00")
         )
 
-        transfer_total = (
-            summary_payments.filter(
+        cash_walk_in = (
+            summary_walk_in_payments.filter(
+                payment_method="Cash"
+            )
+            .aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        cash_total = cash_guest + cash_walk_in
+
+        # Transfer
+        transfer_guest = (
+            summary_reservation_payments.filter(
                 payment_method="Transfer"
             )
             .aggregate(total=Sum("amount"))["total"]
             or Decimal("0.00")
         )
 
-        pos_total = (
-            summary_payments.filter(
+        transfer_walk_in = (
+            summary_walk_in_payments.filter(
+                payment_method="Transfer"
+            )
+            .aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        transfer_total = (
+            transfer_guest + transfer_walk_in
+        )
+
+        # POS
+        pos_guest = (
+            summary_reservation_payments.filter(
                 payment_method="POS"
             )
             .aggregate(total=Sum("amount"))["total"]
             or Decimal("0.00")
         )
 
-        other_total = (
-            summary_payments.filter(
+        pos_walk_in = (
+            summary_walk_in_payments.filter(
+                payment_method="POS"
+            )
+            .aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        pos_total = pos_guest + pos_walk_in
+
+        # Other
+        other_guest = (
+            summary_reservation_payments.filter(
                 payment_method="Other"
             )
             .aggregate(total=Sum("amount"))["total"]
             or Decimal("0.00")
         )
 
-        selected_payment_count = summary_payments.count()
+        other_walk_in = (
+            summary_walk_in_payments.filter(
+                payment_method="Other"
+            )
+            .aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        other_total = other_guest + other_walk_in
 
         # --------------------------------
-        # Payment transactions
+        # All reservation payments
         # --------------------------------
-
-        payments = (
+        reservation_payments = (
             Payment.objects.filter(
                 reservation__lodge=lodge,
             )
@@ -374,35 +1118,58 @@ class FrontDeskFinanceView(generics.GenericAPIView):
                 "reservation__room",
                 "recorded_by",
             )
-            .order_by("-created_at")
+        )
+
+        # --------------------------------
+        # All walk-in Food & Drinks payments
+        # --------------------------------
+        walk_in_payments = (
+            WalkInPayment.objects.filter(
+                order__lodge=lodge,
+            )
+            .select_related(
+                "order",
+                "recorded_by",
+            )
         )
 
         # --------------------------------
         # Search
         # --------------------------------
-
         search = request.query_params.get(
             "search",
             "",
         ).strip()
 
         if search:
-            payments = payments.filter(
-                Q(
-                    reservation__guest__full_name__icontains=search
+            reservation_payments = (
+                reservation_payments.filter(
+                    Q(
+                        reservation__guest__full_name__icontains=search
+                    )
+                    | Q(
+                        reservation__room__room_name__icontains=search
+                    )
+                    | Q(
+                        reference__icontains=search
+                    )
                 )
-                | Q(
-                    reservation__room__room_name__icontains=search
-                )
-                | Q(
-                    reference__icontains=search
+            )
+
+            walk_in_payments = (
+                walk_in_payments.filter(
+                    Q(
+                        order__customer_name__icontains=search
+                    )
+                    | Q(
+                        reference__icontains=search
+                    )
                 )
             )
 
         # --------------------------------
         # Payment method filter
         # --------------------------------
-
         payment_method = request.query_params.get(
             "payment_method"
         )
@@ -413,33 +1180,212 @@ class FrontDeskFinanceView(generics.GenericAPIView):
             "POS",
             "Other",
         ]:
-            payments = payments.filter(
-                payment_method=payment_method
+            reservation_payments = (
+                reservation_payments.filter(
+                    payment_method=payment_method
+                )
+            )
+
+            walk_in_payments = (
+                walk_in_payments.filter(
+                    payment_method=payment_method
+                )
             )
 
         # --------------------------------
         # Apply date filter to transactions
         # --------------------------------
+        reservation_payments = (
+            reservation_payments.filter(
+                created_at__date__gte=summary_start_date,
+                created_at__date__lte=summary_end_date,
+            )
+        )
 
-        payments = payments.filter(
-            created_at__date__gte=summary_start_date,
-            created_at__date__lte=summary_end_date,
+        walk_in_payments = (
+            walk_in_payments.filter(
+                created_at__date__gte=summary_start_date,
+                created_at__date__lte=summary_end_date,
+            )
         )
 
         # --------------------------------
-        # Pagination
+        # Build Guest Payments
         # --------------------------------
+        guest_payment_data = []
 
-        try:
-            page = int(
-                request.query_params.get(
-                    "page",
-                    1,
+        for payment in reservation_payments:
+            guest_payment_data.append(
+                {
+                    "id": payment.id,
+                    "reservation_id": payment.reservation_id,
+                    "guest_name": (
+                        payment.reservation.guest.full_name
+                        if payment.reservation.guest
+                        else ""
+                    ),
+                    "room_name": (
+                        payment.reservation.room.room_name
+                        if payment.reservation.room
+                        else ""
+                    ),
+                    "amount": payment.amount,
+                    "payment_method": payment.payment_method,
+                    "reference": payment.reference,
+                    "notes": payment.notes,
+                    "recorded_by": (
+                        payment.recorded_by.username
+                        if payment.recorded_by
+                        else ""
+                    ),
+                    "created_at": payment.created_at,
+                }
+            )
+
+        # --------------------------------
+        # Prepare filtered walk-in payments
+        # --------------------------------
+        filtered_walk_in_payments = list(
+            walk_in_payments.select_related(
+                "order",
+                "recorded_by",
+            )
+        )
+
+        # --------------------------------
+        # Get affected walk-in orders
+        # --------------------------------
+        walk_in_order_ids = {
+            payment.order_id
+            for payment in filtered_walk_in_payments
+        }
+
+        walk_in_orders = (
+            WalkInOrder.objects.filter(
+                lodge=lodge,
+                id__in=walk_in_order_ids,
+            )
+            .prefetch_related(
+                "items",
+                "payments",
+            )
+        )
+
+        # --------------------------------
+        # Group selected-period payments
+        # by walk-in order
+        # --------------------------------
+        period_payments_by_order = {}
+
+        for payment in filtered_walk_in_payments:
+            period_payments_by_order.setdefault(
+                payment.order_id,
+                [],
+            ).append(payment)
+
+        # --------------------------------
+        # Build Walk-in Food & Drinks orders
+        # --------------------------------
+        walk_in_food_drinks_data = []
+
+        for order in walk_in_orders:
+            all_order_payments = list(
+                order.payments.all()
+            )
+
+            order_items = list(
+                order.items.all()
+            )
+
+            order_total = sum(
+                (
+                    item.total
+                    for item in order_items
+                ),
+                Decimal("0.00"),
+            )
+
+            total_paid = sum(
+                (
+                    payment.amount
+                    for payment in all_order_payments
+                ),
+                Decimal("0.00"),
+            )
+
+            balance = (
+                order_total - total_paid
+            )
+
+            period_payments = (
+                period_payments_by_order.get(
+                    order.id,
+                    [],
                 )
             )
-        except (TypeError, ValueError):
-            page = 1
 
+            period_collected = sum(
+                (
+                    payment.amount
+                    for payment in period_payments
+                ),
+                Decimal("0.00"),
+            )
+
+            last_payment_at = None
+
+            if all_order_payments:
+                last_payment_at = max(
+                    payment.created_at
+                    for payment in all_order_payments
+                )
+
+            walk_in_food_drinks_data.append(
+                {
+                    "id": order.id,
+                    "order_id": order.id,
+                    "customer_name": (
+                        order.customer_name
+                    ),
+                    "order_total": order_total,
+                    "period_collected": (
+                        period_collected
+                    ),
+                    "total_paid": total_paid,
+                    "balance": balance,
+                    "status": order.status,
+                    "payment_count": len(
+                        all_order_payments
+                    ),
+                    "period_payment_count": len(
+                        period_payments
+                    ),
+                    "last_payment_at": (
+                        last_payment_at
+                    ),
+                    "created_at": order.created_at,
+                }
+            )
+
+        # --------------------------------
+        # Newest first
+        # --------------------------------
+        guest_payment_data.sort(
+            key=lambda item: item["created_at"],
+            reverse=True,
+        )
+
+        walk_in_food_drinks_data.sort(
+            key=lambda item: (
+                item["last_payment_at"]
+                or item["created_at"]
+            ),
+            reverse=True,
+        )
+
+        # --------------------------------
+        # Pagination settings
+        # --------------------------------
         try:
             page_size = int(
                 request.query_params.get(
@@ -450,83 +1396,246 @@ class FrontDeskFinanceView(generics.GenericAPIView):
         except (TypeError, ValueError):
             page_size = 20
 
-        page = max(page, 1)
         page_size = min(
             max(page_size, 1),
             100,
         )
 
-        total_count = payments.count()
-
-        start_index = (page - 1) * page_size
-        end_index = start_index + page_size
-
-        paginated_payments = payments[
-            start_index:end_index
-        ]
-
-        has_next = end_index < total_count
-        has_previous = page > 1
-
         # --------------------------------
-        # Transaction response data
+        # Pagination helper
         # --------------------------------
+        def paginate_items(items, page_param):
+            try:
+                requested_page = int(
+                    request.query_params.get(
+                        page_param,
+                        1,
+                    )
+                )
+            except (TypeError, ValueError):
+                requested_page = 1
 
-        payment_data = [
-            {
-                "id": payment.id,
-                "reservation": payment.reservation_id,
-                "guest_name": (
-                    payment.reservation.guest.full_name
-                    if payment.reservation.guest
-                    else ""
-                ),
-                "room_name": (
-                    payment.reservation.room.room_name
-                    if payment.reservation.room
-                    else ""
-                ),
-                "amount": payment.amount,
-                "payment_method": payment.payment_method,
-                "reference": payment.reference,
-                "notes": payment.notes,
-                "recorded_by": (
-                payment.recorded_by.username
-                if payment.recorded_by
-                else ""
-            ),
-                "created_at": payment.created_at,
+            requested_page = max(
+                requested_page,
+                1,
+            )
+
+            start_index = (
+                requested_page - 1
+            ) * page_size
+
+            end_index = (
+                start_index + page_size
+            )
+
+            total_items = len(items)
+
+            return {
+                "items": items[
+                    start_index:end_index
+                ],
+                "pagination": {
+                    "page": requested_page,
+                    "page_size": page_size,
+                    "total_count": total_items,
+                    "has_next": (
+                        end_index < total_items
+                    ),
+                    "has_previous": (
+                        requested_page > 1
+                    ),
+                },
             }
-            for payment in paginated_payments
-        ]
+
+        # --------------------------------
+        # Semantic section pagination
+        # --------------------------------
+        guest_page_data = paginate_items(
+            guest_payment_data,
+            "guest_page",
+        )
+
+        walk_in_food_drinks_page_data = paginate_items(
+            walk_in_food_drinks_data,
+            "walk_in_page",
+        )
+
+        # --------------------------------
+        # Walk-in order count
+        # --------------------------------
+        walk_in_food_drinks_order_count = len(
+            walk_in_food_drinks_data
+        )
+
+        # --------------------------------
+        # Legacy combined transaction list
+        # Kept for compatibility
+        # --------------------------------
+        legacy_transaction_data = []
+
+        for payment in reservation_payments:
+            legacy_transaction_data.append(
+                {
+                    "id": payment.id,
+                    "type": "reservation",
+                    "reservation": payment.reservation_id,
+                    "walk_in_order": None,
+                    "guest_name": (
+                        payment.reservation.guest.full_name
+                        if payment.reservation.guest
+                        else ""
+                    ),
+                    "room_name": (
+                        payment.reservation.room.room_name
+                        if payment.reservation.room
+                        else ""
+                    ),
+                    "customer_name": "",
+                    "amount": payment.amount,
+                    "payment_method": payment.payment_method,
+                    "reference": payment.reference,
+                    "notes": payment.notes,
+                    "recorded_by": (
+                        payment.recorded_by.username
+                        if payment.recorded_by
+                        else ""
+                    ),
+                    "created_at": payment.created_at,
+                }
+            )
+
+        for payment in filtered_walk_in_payments:
+            legacy_transaction_data.append(
+                {
+                    "id": payment.id,
+                    "type": "walk_in",
+                    "reservation": None,
+                    "walk_in_order": payment.order_id,
+                    "guest_name": "",
+                    "room_name": "",
+                    "customer_name": (
+                        payment.order.customer_name
+                    ),
+                    "amount": payment.amount,
+                    "payment_method": payment.payment_method,
+                    "reference": payment.reference,
+                    "notes": payment.notes,
+                    "recorded_by": (
+                        payment.recorded_by.username
+                        if payment.recorded_by
+                        else ""
+                    ),
+                    "created_at": payment.created_at,
+                }
+            )
+
+        legacy_transaction_data.sort(
+            key=lambda item: item["created_at"],
+            reverse=True,
+        )
+
+        # --------------------------------
+        # Legacy combined pagination
+        # --------------------------------
+        try:
+            page = int(
+                request.query_params.get(
+                    "page",
+                    1,
+                )
+            )
+        except (TypeError, ValueError):
+            page = 1
+
+        page = max(page, 1)
+
+        total_count = len(
+            legacy_transaction_data
+        )
+
+        start_index = (
+            page - 1
+        ) * page_size
+
+        end_index = (
+            start_index + page_size
+        )
+
+        paginated_transactions = (
+            legacy_transaction_data[
+                start_index:end_index
+            ]
+        )
+
+        has_next = (
+            end_index < total_count
+        )
+
+        has_previous = page > 1
 
         # --------------------------------
         # Response
         # --------------------------------
-
         return Response(
             {
                 "date": today,
 
-                # Selected period
                 "period": {
                     "filter": date_filter,
                     "start_date": summary_start_date,
                     "end_date": summary_end_date,
                 },
 
-                # Selected-period summary
+                # Combined totals
                 "selected_total": selected_total,
                 "cash_total": cash_total,
                 "transfer_total": transfer_total,
                 "pos_total": pos_total,
                 "other_total": other_total,
-                "selected_payment_count": selected_payment_count,
+                "selected_payment_count": (
+                    selected_payment_count
+                ),
 
-                # Transactions
-                "payments": payment_data,
+                # Guest payment totals
+                "guest_payments_total": (
+                    guest_payments_total
+                ),
+                "guest_payment_count": (
+                    guest_payment_count
+                ),
 
-                # Pagination
+                # Walk-in Food & Drinks totals
+                "walk_in_food_drinks_total": (
+                    walk_in_food_drinks_total
+                ),
+                "walk_in_food_drinks_payment_count": (
+                    walk_in_food_drinks_payment_count
+                ),
+                "walk_in_food_drinks_order_count": (
+                    walk_in_food_drinks_order_count
+                ),
+
+                # Guest Payments
+                "guest_payments": (
+                    guest_page_data["items"]
+                ),
+                "guest_pagination": (
+                    guest_page_data["pagination"]
+                ),
+
+                # Walk-in Food & Drinks Orders
+                "walk_in_food_drinks": (
+                    walk_in_food_drinks_page_data["items"]
+                ),
+                "walk_in_food_drinks_pagination": (
+                    walk_in_food_drinks_page_data[
+                        "pagination"
+                    ]
+                ),
+
+                # Existing combined response
+                # retained temporarily for compatibility
+                "payments": paginated_transactions,
                 "pagination": {
                     "page": page,
                     "page_size": page_size,
@@ -536,6 +1645,7 @@ class FrontDeskFinanceView(generics.GenericAPIView):
                 },
             }
         )
+
 
 class BillingSummaryView(generics.GenericAPIView):
     def get(self, request, reservation_id):
@@ -832,8 +1942,11 @@ class ExpenseDetailView(
             expense.delete()
 
 
+
 class FinancialSummaryView(generics.GenericAPIView):
+
     def get(self, request):
+
         membership = (
             request.user.memberships.filter(active=True)
             .select_related("lodge")
@@ -873,13 +1986,27 @@ class FinancialSummaryView(generics.GenericAPIView):
         # Custom period calculation
         # -------------------------
         if start_date and end_date:
-            period_income = (
+
+            reservation_period_income = (
                 Payment.objects.filter(
                     reservation__lodge=lodge,
                     created_at__date__gte=start_date,
                     created_at__date__lte=end_date,
                 ).aggregate(total=Sum("amount"))["total"]
                 or Decimal("0.00")
+            )
+
+            walk_in_period_income = (
+                WalkInPayment.objects.filter(
+                    order__lodge=lodge,
+                    created_at__date__gte=start_date,
+                    created_at__date__lte=end_date,
+                ).aggregate(total=Sum("amount"))["total"]
+                or Decimal("0.00")
+            )
+
+            period_income = (
+                reservation_period_income + walk_in_period_income
             )
 
             period_general_expenses = (
@@ -915,12 +2042,24 @@ class FinancialSummaryView(generics.GenericAPIView):
         # -------------------------
         today = timezone.localdate()
 
-        today_income = (
+        reservation_today_income = (
             Payment.objects.filter(
                 reservation__lodge=lodge,
                 created_at__date=today,
             ).aggregate(total=Sum("amount"))["total"]
             or Decimal("0.00")
+        )
+
+        walk_in_today_income = (
+            WalkInPayment.objects.filter(
+                order__lodge=lodge,
+                created_at__date=today,
+            ).aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        today_income = (
+            reservation_today_income + walk_in_today_income
         )
 
         today_expenses = (
@@ -954,13 +2093,26 @@ class FinancialSummaryView(generics.GenericAPIView):
             days=today.weekday()
         )
 
-        week_income = (
+        reservation_week_income = (
             Payment.objects.filter(
                 reservation__lodge=lodge,
                 created_at__date__gte=start_of_week,
                 created_at__date__lte=today,
             ).aggregate(total=Sum("amount"))["total"]
             or Decimal("0.00")
+        )
+
+        walk_in_week_income = (
+            WalkInPayment.objects.filter(
+                order__lodge=lodge,
+                created_at__date__gte=start_of_week,
+                created_at__date__lte=today,
+            ).aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        week_income = (
+            reservation_week_income + walk_in_week_income
         )
 
         week_expenses = (
@@ -994,13 +2146,26 @@ class FinancialSummaryView(generics.GenericAPIView):
         # -------------------------
         start_of_month = today.replace(day=1)
 
-        month_income = (
+        reservation_month_income = (
             Payment.objects.filter(
                 reservation__lodge=lodge,
                 created_at__date__gte=start_of_month,
                 created_at__date__lte=today,
             ).aggregate(total=Sum("amount"))["total"]
             or Decimal("0.00")
+        )
+
+        walk_in_month_income = (
+            WalkInPayment.objects.filter(
+                order__lodge=lodge,
+                created_at__date__gte=start_of_month,
+                created_at__date__lte=today,
+            ).aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        month_income = (
+            reservation_month_income + walk_in_month_income
         )
 
         month_expenses = (
@@ -1032,11 +2197,22 @@ class FinancialSummaryView(generics.GenericAPIView):
         # -------------------------
         # Overall
         # -------------------------
-        total_income = (
+        reservation_total_income = (
             Payment.objects.filter(
                 reservation__lodge=lodge,
             ).aggregate(total=Sum("amount"))["total"]
             or Decimal("0.00")
+        )
+
+        walk_in_total_income = (
+            WalkInPayment.objects.filter(
+                order__lodge=lodge,
+            ).aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        total_income = (
+            reservation_total_income + walk_in_total_income
         )
 
         general_expenses = (
@@ -1064,7 +2240,6 @@ class FinancialSummaryView(generics.GenericAPIView):
         return Response(
             {
                 "total_income": total_income,
-
                 "today_income": today_income,
                 "today_expenses": today_expenses,
                 "today_staff_expenses": today_staff_expenses,
@@ -1085,7 +2260,6 @@ class FinancialSummaryView(generics.GenericAPIView):
 
                 "staff_expenses": staff_expenses,
                 "total_expenses": total_expenses,
-
                 "period_income": period_income,
                 "period_general_expenses": period_general_expenses,
                 "period_staff_expenses": period_staff_expenses,
@@ -1095,6 +2269,8 @@ class FinancialSummaryView(generics.GenericAPIView):
                 "profit": profit,
             }
         )
+
+
 
 class StaffListCreateView(
     generics.ListCreateAPIView

@@ -50,6 +50,12 @@ const navigation: NavigationSection[] = [
         icon: "♙",
         roles: ["Owner", "Manager", "Receptionist"],
       },
+      {
+    name: "Food & Drinks",
+    href: "/food-drinks",
+    icon: "♨",
+    roles: ["Owner", "Manager", "Receptionist"],
+  },
     ],
   },
   {
@@ -96,6 +102,17 @@ const navigation: NavigationSection[] = [
       icon: "◷",
       roles: ["Owner"],
     },
+    ],
+  },
+    {
+    title: "Settings",
+    items: [
+      {
+        name: "Settings",
+        href: "/settings",
+        icon: "⚙",
+        roles: ["Owner", "Manager"],
+      },
     ],
   },
 ];
@@ -156,6 +173,13 @@ export default function Sidebar({
       return (
         router.pathname === "/guests" ||
         router.pathname.startsWith("/guests/")
+      );
+    }
+
+    if (href === "/food-drinks") {
+      return (
+        router.pathname === "/food-drinks" ||
+        router.pathname.startsWith("/food-drinks/")
       );
     }
 

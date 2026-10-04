@@ -10,10 +10,12 @@ type Charge = {
 
 type ChargesListProps = {
   charges: Charge[];
+   stayType: string;
 };
 
 export default function ChargesList({
   charges,
+  stayType,
 }: ChargesListProps) {
   return (
     <div className="mt-6 rounded-xl bg-white p-6 shadow">
@@ -39,11 +41,15 @@ export default function ChargesList({
 
                 <p className="text-sm text-gray-500">
                   {charge.category === "Accommodation"
-                    ? `${charge.quantity} ${
-                        charge.quantity === 1 ? "night" : "nights"
-                      } × ₦${Number(
-                        charge.unit_price
-                      ).toLocaleString()}/night`
+                    ? stayType === "Short Rest"
+                      ? `Short Rest × ₦${Number(
+                          charge.unit_price
+                        ).toLocaleString()}`
+                      : `${charge.quantity} ${
+                          charge.quantity === 1 ? "night" : "nights"
+                        } × ₦${Number(
+                          charge.unit_price
+                        ).toLocaleString()}/night`
                     : `${charge.category} · Qty: ${charge.quantity}`}
                 </p>
               </div>
