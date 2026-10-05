@@ -265,6 +265,9 @@ if (!serviceItemsResponse.ok) {
         <ChargesList
         charges={charges}
         stayType={reservation.stay_type}
+        currentAccommodationNights={
+          summary.current_accommodation_nights
+        }
       />
 
         <PaymentsList payments={payments} />
