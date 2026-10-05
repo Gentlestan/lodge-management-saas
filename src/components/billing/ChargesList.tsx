@@ -11,11 +11,13 @@ type Charge = {
 type ChargesListProps = {
   charges: Charge[];
    stayType: string;
+   currentAccommodationNights?: number | null;
 };
 
 export default function ChargesList({
   charges,
   stayType,
+  currentAccommodationNights,
 }: ChargesListProps) {
   return (
     <div className="mt-6 rounded-xl bg-white p-6 shadow">
@@ -29,7 +31,21 @@ export default function ChargesList({
         </p>
       ) : (
         <div className="space-y-3">
-          {charges.map((charge) => (
+          {charges.map((charge) => {
+          const isCurrentAccommodation =
+        charge.category === "Accommodation" &&
+        stayType === "Overnight" &&
+        currentAccommodationNights != null;
+
+      const displayQuantity = isCurrentAccommodation
+        ? currentAccommodationNights
+        : charge.quantity;
+
+      const displayTotal = isCurrentAccommodation
+        ? displayQuantity * Number(charge.unit_price)
+        : Number(charge.total);
+
+          return (
             <div
               key={charge.id}
               className="flex items-center justify-between border-b pb-3"
@@ -45,8 +61,8 @@ export default function ChargesList({
                       ? `Short Rest × ₦${Number(
                           charge.unit_price
                         ).toLocaleString()}`
-                      : `${charge.quantity} ${
-                          charge.quantity === 1 ? "night" : "nights"
+                      : `${displayQuantity} ${
+                          displayQuantity === 1 ? "night" : "nights"
                         } × ₦${Number(
                           charge.unit_price
                         ).toLocaleString()}/night`
@@ -55,10 +71,11 @@ export default function ChargesList({
               </div>
 
               <p className="font-semibold">
-                ₦{Number(charge.total).toLocaleString()}
+                ₦{displayTotal.toLocaleString()}
               </p>
             </div>
-          ))}
+          );
+        })}
         </div>
       )}
     </div>

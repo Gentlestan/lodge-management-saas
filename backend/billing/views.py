@@ -696,6 +696,7 @@ class WalkInOrderItemDetailView(
                 "Items cannot be removed from a paid order."
             )
 
+
         if item.order.payments.exists():
             raise PermissionDenied(
                 "Items cannot be removed after a payment has been recorded."
@@ -1647,6 +1648,8 @@ class FrontDeskFinanceView(generics.GenericAPIView):
         )
 
 
+
+
 class BillingSummaryView(generics.GenericAPIView):
     def get(self, request, reservation_id):
         membership = (
@@ -1671,13 +1674,35 @@ class BillingSummaryView(generics.GenericAPIView):
 
         charges = reservation.charges.all()
 
-        total_charges = sum(
-            (
-                charge.quantity * charge.unit_price
-                for charge in charges
-            ),
-            Decimal("0.00"),
-        )
+        current_accommodation_nights = None
+
+        total_charges = Decimal("0.00")
+
+        for charge in charges:
+            quantity = charge.quantity
+            unit_price = charge.unit_price
+
+            if (
+                reservation.status == "Checked In"
+                and reservation.stay_type == "Overnight"
+                and charge.category == "Accommodation"
+                and reservation.checked_in_at
+            ):
+                actual_checkout_date = timezone.localdate()
+
+                nights = (
+                    actual_checkout_date
+                    - reservation.checked_in_at.date()
+                ).days
+
+                nights = max(1, nights)
+
+                current_accommodation_nights = nights
+
+                quantity = nights
+                unit_price = reservation.room_rate
+
+            total_charges += quantity * unit_price
 
         total_payments = (
             reservation.payments.aggregate(
@@ -1701,6 +1726,7 @@ class BillingSummaryView(generics.GenericAPIView):
             {
                 "reservation": reservation.id,
                 "total_charges": total_charges,
+                "current_accommodation_nights": current_accommodation_nights,
                 "total_payments": total_payments,
                 "balance": balance,
                 "payment_status": payment_status,
@@ -1863,7 +1889,7 @@ class ExpenseDetailView(
         return Expense.objects.filter(
             lodge=membership.lodge
         )
-    
+
     def perform_update(self, serializer):
         expense = self.get_object()
 
@@ -1914,8 +1940,8 @@ class ExpenseDetailView(
                         "category_name": expense.category.name,
                     },
                 )
-                
-                
+
+
     def perform_destroy(self, instance):
         expense = instance
 
@@ -2370,8 +2396,8 @@ class SalaryPaymentListCreateView(
             )
 
         return queryset
-    
-    
+
+
     def perform_create(self, serializer):
         with transaction.atomic():
             salary_payment = serializer.save()

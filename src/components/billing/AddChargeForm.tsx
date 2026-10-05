@@ -30,6 +30,7 @@ type AddChargeFormProps = {
 type BillingSummary = {
   reservation: number;
   total_charges: number;
+   current_accommodation_nights: number | null;
   total_payments: number;
   balance: number;
   payment_status: string;
